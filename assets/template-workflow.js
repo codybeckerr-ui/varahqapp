@@ -1,6 +1,5 @@
 /* Admin setup and member generation share template identity, never design authority. */
 const workflow = { template: null, fields: [], fonts: [], pages: [], warnings: [], selected: 0, values: {}, preview: '', report: null, dirty: false, busy: false, mode: 'builder', fontQuery: '' };
-const googleCatalog = {fonts:[], query:'', loaded:false};
 const apiBase = location.protocol === 'file:' ? 'https://varahqapp.vercel.app' : '';
 const workflowPublishableKey = 'sb_publishable_R4UOrzo-lb95ExANWotdPw_2VSADYzc';
 const html = escapeHtml;
@@ -49,9 +48,8 @@ function fontOptions(field) {
   const selected=field.style_metadata.font_id;
   return `<option value="">Choose a full font…</option>${workflow.fonts.map(f=>`<option value="${html(f.id)}" ${selected===f.id?'selected':''}>${html(f.name)}</option>`).join('')}`;
 }
-function googleFontSearch(context='builder') {
-  const value=context==='brandkit'?googleCatalog.query:workflow.fontQuery;
-  return `<div class="font-search"><label for="googleFontQuery">Find a Google Font</label><div><input id="googleFontQuery" value="${html(value)}" maxlength="80" placeholder="Roboto, Lato, Montserrat…"><button type="button" class="btn outline" data-workflow="google-fonts" data-font-context="${context}">Search</button></div></div>`;
+function googleFontSearch() {
+  return `<div class="font-search"><label for="googleFontQuery">Find a built-in Google Font</label><div><input id="googleFontQuery" value="${html(workflow.fontQuery)}" maxlength="80" placeholder="Roboto, Lato, Montserrat…"><button type="button" class="btn outline" data-workflow="google-fonts">Search</button></div></div>`;
 }
 function fieldInput(label,key,type='number',attributes='') {
   const f=workflow.fields[workflow.selected];
@@ -112,14 +110,9 @@ function personalizationView() {
 function paintWorkflow() { title.textContent=workflow.mode==='builder'?'Template Builder':'Personalize';content.innerHTML=workflow.mode==='builder'?builderView():personalizationView();updateWorkflowButtons(); }
 views.builder=builderView;
 views.personalize=personalizationView;
-function brandKitView() {
- const configured=googleCatalog.loaded;
- return `<div class="card"><h3>Brand Fonts</h3><p class="muted">Search the live Google Fonts catalog. Fonts selected in a template are validated and embedded into that published template for consistent output.</p>${googleFontSearch('brandkit')}<div id="fontCatalogMessage" class="form-message" role="status"></div><div class="font-catalog">${configured?(googleCatalog.fonts.length?googleCatalog.fonts.map(f=>`<div class="font-result"><strong>${html(f.family)}</strong><span>${html(f.variant)} · ${html(f.category)}</span></div>`).join(''):'No matching Google Fonts found.'):'Search by family name, or leave the search blank to see popular fonts.'}</div><div class="notice">Organization font uploads remain available inside each draft template for licensed fonts that are not in Google Fonts.</div></div>`;
-}
-views.brandkit=brandKitView;
 templateLibrary=function() {
  if(!state.templates.length) return '<div class="empty"><h3>No templates yet</h3><p>Upload a master PDF to begin.</p></div>';
- return `<div class="templates">${state.templates.map(t=>`<article class="template"><div class="preview">PDF MASTER</div><div class="body"><div class="template-meta"><strong>${html(t.name)}</strong><span class="pill">${html(t.status)}</span></div><p class="muted">${html(t.description || '')}</p><div class="workflow-actions">${state.isAdmin?`<button class="btn outline" data-open-template="${t.id}">${t.status==='published'?'View Configuration':'Configure & Publish'}</button>`:''}${t.status==='published'?`<button class="btn" data-personalize-template="${t.id}">Personalize</button>`:''}</div></div></article>`).join('')}</div>`;
+ return `<div class="templates">${state.templates.map(t=>`<article class="template"><div class="preview">PDF MASTER</div><div class="body"><div class="template-meta"><strong>${html(t.name)}</strong><span class="pill">${html(t.status)}</span></div><p class="muted">${html(t.description || '')}</p><div class="workflow-actions">${state.isAdmin?`<button class="btn outline" data-open-template="${t.id}">${t.status==='published'?'View Configuration':'Configure & Publish'}</button>`:''}${t.status==='published'?`<button class="btn" data-personalize-template="${t.id}">Personalize</button>${libraryToggleButton('template',t.id)}`:''}</div></div></article>`).join('')}</div>`;
 };
 function markDirty() { workflow.dirty=true;workflow.report=null;workflow.testPreview='';updateWorkflowButtons(); }
 content.addEventListener('input',event=>{
@@ -169,17 +162,11 @@ content.addEventListener('click',event=>{
    const result=await templateRequest('font_upload',{organization_id:state.organization.id,font:btoa(binary),licensed:true},true);
    workflow.fonts.push(result);paintWorkflow();workflowMessage(`${result.name} uploaded. Select it for the matching fields.`);
   } else if(action==='google-fonts') {
-   const context=event.target.closest('[data-workflow]').dataset.fontContext || 'builder';
    const query=document.getElementById('googleFontQuery')?.value.trim() || '';
    const result=await templateRequest('font_catalog',{organization_id:state.organization.id,query,limit:80});
-   if(context==='brandkit') {
-    Object.assign(googleCatalog,{fonts:result.fonts,query,loaded:true});content.innerHTML=brandKitView();
-    const message=document.getElementById('fontCatalogMessage');if(message){message.className='form-message success';message.textContent=`${result.fonts.length} font style${result.fonts.length===1?'':'s'} shown.`;}
-   } else {
-    workflow.fontQuery=query;
-    const known=new Set(workflow.fonts.map(f=>f.id));for(const font of result.fonts)if(!known.has(font.id))workflow.fonts.push(font);
-    paintWorkflow();workflowMessage(`${result.fonts.length} Google Font style${result.fonts.length===1?'':'s'} added to the font list.`);
-   }
+   workflow.fontQuery=query;
+   const known=new Set(workflow.fonts.map(f=>f.id));for(const font of result.fonts)if(!known.has(font.id))workflow.fonts.push(font);
+   paintWorkflow();workflowMessage(`${result.fonts.length} Google Font style${result.fonts.length===1?'':'s'} added to the font list.`);
   } else if(action==='personalize') {await openTemplate(workflow.template.id,'personalize');}
   else if(action==='preview'||action==='generate') {
    const values=Object.fromEntries(workflow.fields.filter(f=>f.user_editable).map(f=>[f.variable_name,workflow.values[f.variable_name]||'']));
@@ -217,6 +204,6 @@ async function loadDownloads(){
  const target=document.getElementById('downloadList');
  const {data,error}=await sb.from('generated_assets').select('id,file_path,output_format,created_at,templates(name)').eq('organization_id',state.organization.id).order('created_at',{ascending:false}).limit(50);
  if(!target?.isConnected)return;if(error){target.textContent=error.message;return;}
- target.innerHTML=data.length?data.map(a=>`<div class="download-row"><span>${html(a.templates?.name||'Template')} · ${html(a.output_format.toUpperCase())} · ${new Date(a.created_at).toLocaleString()}</span><button class="btn outline" data-download-id="${a.id}">Download</button></div>`).join(''):'No generated files yet. Open a published template to create one.';
+ target.innerHTML=data.length?data.map(a=>`<div class="download-row"><span>${html(a.templates?.name||'Template')} · ${html(a.output_format.toUpperCase())} · ${new Date(a.created_at).toLocaleString()}</span><span class="row-actions"><button class="btn outline" data-download-id="${a.id}">Download</button>${libraryToggleButton('generated_asset',a.id)}</span></div>`).join(''):'No generated files yet. Open a published template to create one.';
  target.onclick=async event=>{const id=event.target.dataset.downloadId;if(!id)return;const asset=data.find(a=>a.id===id);const {data:link,error}=await sb.storage.from('generated-assets').createSignedUrl(asset.file_path,300,{download:true});if(error){event.target.textContent=error.message;return;}const a=document.createElement('a');a.href=link.signedUrl;a.target='_blank';a.rel='noopener';a.click();};
 }
