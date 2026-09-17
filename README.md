@@ -17,10 +17,15 @@ Design anywhere → Upload master → Configure approved variables → Test → 
 - Master artwork remains locked; variable rules are configured by admins and hidden from end users.
 - Template fidelity rules include font, size, color, bounds, alignment, minimum font size, shrink-to-fit and overflow behavior.
 
-## Current first slice
+## Current application slice
 
-`index.html` contains the approved VaraHQ marketing/login direction and is connected to the VaraHQ Supabase project for email/password sign-in. A minimal authenticated dashboard shell is included so auth can be tested immediately.
+- `index.html` preserves the approved VaraHQ marketing and email/password sign-in direction.
+- `signup.html` creates an Auth account and passes onboarding details to the database-controlled signup transaction.
+- `app.html` protects the workspace and loads the signed-in user's profile, organization, role, and dashboard counts from Supabase.
+- `supabase/migrations/` contains the reviewed database changes for secure organization onboarding and tenant-aware access.
+
+The first person signing up for a new organization is assigned `owner` by the database trigger. Browser-supplied roles are never accepted. The existing Test Company is reserved for `Codybeckerr@gmail.com` so Cody's signup attaches to that record rather than creating a duplicate.
 
 ## Next
 
-Convert the static first slice into the production Next.js app, verify authenticated organization/RLS access, add the Test Company owner, then build Templates → Template Builder → Generator.
+Verify the account-confirmation and authenticated organization flow in production, add the canonical logo asset when supplied, then build Templates → Template Builder → Generator and migrate deliberately to Next.js.

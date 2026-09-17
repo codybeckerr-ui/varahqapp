@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Create your VaraHQ account</title>
+  <meta name="description" content="Create your VaraHQ account and organization workspace.">
+  <style>
+    :root{--g:#0F2D24;--s:#7A9B87;--st:#E8E7E1;--mut:#62736b;--danger:#9c2f2f}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:#f7f8f6;color:var(--g)}a{color:inherit}.page{min-height:100vh;display:grid;grid-template-columns:minmax(280px,.8fr) minmax(520px,1.2fr)}.intro{background:var(--g);color:white;padding:clamp(36px,7vw,90px);display:flex;flex-direction:column;justify-content:space-between}.brand{font-weight:900;letter-spacing:.1em;font-size:20px}.brand span{color:var(--s)}.intro h1{font-size:clamp(40px,5vw,68px);line-height:1.02;letter-spacing:-.045em;max-width:620px;margin:20px 0}.intro p{color:#cfddd7;line-height:1.7;max-width:560px}.steps{display:grid;gap:12px;margin-top:38px}.step{display:flex;align-items:center;gap:12px;color:#dfe9e4}.step b{width:28px;height:28px;border:1px solid #ffffff55;border-radius:50%;display:grid;place-items:center;font-size:12px}.panel{display:grid;place-items:center;padding:42px 28px}.card{background:white;border:1px solid #dbe4df;border-radius:18px;padding:clamp(26px,4vw,42px);width:min(100%,720px);box-shadow:0 20px 50px #0f2d2412}.eyebrow{font-size:11px;letter-spacing:.18em;color:var(--s);font-weight:900}.card h2{font-size:34px;margin:9px 0}.sub{color:var(--mut);line-height:1.6}.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}.wide{grid-column:1/-1}label{display:block;font-size:12px;font-weight:800;margin:16px 0 7px}input,select{width:100%;padding:13px 14px;border:1px solid #cad5cf;border-radius:8px;font:inherit;background:white;color:#1f1f1f}input:focus,select:focus{outline:3px solid #7a9b8733;border-color:var(--s)}button{width:100%;border:0;background:var(--g);color:white;padding:14px 19px;border-radius:9px;font-weight:800;cursor:pointer;margin-top:22px}button:disabled{opacity:.65;cursor:wait}.message{font-size:13px;color:var(--mut);margin-top:14px;min-height:21px}.message.error{color:var(--danger)}.signin{text-align:center;font-size:14px;margin-top:18px;color:var(--mut)}@media(max-width:900px){.page{grid-template-columns:1fr}.intro{padding:34px}.intro h1{font-size:40px}.steps{display:none}.panel{padding:28px 18px}}@media(max-width:580px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="intro" aria-labelledby="welcome-title">
+      <a class="brand" href="./index.html" aria-label="VaraHQ home">VARA<span>HQ</span></a>
+      <div>
+        <div class="eyebrow">BRAND ASSETS. SIMPLIFIED.</div>
+        <h1 id="welcome-title">Build your brand workspace.</h1>
+        <p>Create your account and organization in one step. You’ll be the workspace owner and can invite your team later.</p>
+        <div class="steps" aria-label="Onboarding steps">
+          <div class="step"><b>1</b><span>Create account</span></div>
+          <div class="step"><b>2</b><span>Set up organization</span></div>
+          <div class="step"><b>3</b><span>Add your brand kit</span></div>
+          <div class="step"><b>4</b><span>Open dashboard</span></div>
+        </div>
+      </div>
+      <small>Design once. Generate thousands.</small>
+    </section>
+    <section class="panel">
+      <form class="card" id="signupForm">
+        <div class="eyebrow">GET STARTED</div>
+        <h2>Create your account</h2>
+        <p class="sub">Your first workspace is created securely with you as its owner.</p>
+        <div class="grid">
+          <div>
+            <label for="fullName">Full name</label>
+            <input id="fullName" name="fullName" autocomplete="name" maxlength="120" required>
+          </div>
+          <div>
+            <label for="email">Work email</label>
+            <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
+          </div>
+          <div>
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+          </div>
+          <div>
+            <label for="organizationName">Organization name</label>
+            <input id="organizationName" name="organizationName" autocomplete="organization" maxlength="120" required>
+          </div>
+          <div class="wide">
+            <label for="website">Website <span class="sub">(optional)</span></label>
+            <input id="website" name="website" type="url" autocomplete="url" maxlength="255" placeholder="https://example.com">
+          </div>
+          <div>
+            <label for="industry">Industry</label>
+            <select id="industry" name="industry" required>
+              <option value="">Select an industry</option>
+              <option>Real Estate</option><option>Franchises</option><option>Financial Services</option><option>Insurance</option><option>Home Services</option><option>Healthcare</option><option>Automotive</option><option>Property Management</option><option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label for="teamSize">Team size</label>
+            <select id="teamSize" name="teamSize" required>
+              <option value="">Select team size</option>
+              <option value="1">Just me</option><option value="2-10">2–10</option><option value="11-50">11–50</option><option value="51-200">51–200</option><option value="201-1000">201–1,000</option><option value="1000+">1,000+</option>
+            </select>
+          </div>
+        </div>
+        <button id="submitButton" type="submit">Create Account &amp; Workspace</button>
+        <div id="signupMessage" class="message" role="status" aria-live="polite"></div>
+        <div class="signin">Already have an account? <a href="./index.html#signin">Sign in</a></div>
+      </form>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const sb = supabase.createClient('https://wzgfzopxltgfkejpofat.supabase.co', 'sb_publishable_R4UOrzo-lb95ExANWotdPw_2VSADYzc');
+    const form = document.getElementById('signupForm');
+    const message = document.getElementById('signupMessage');
+    const submitButton = document.getElementById('submitButton');
+
+    sb.auth.getSession().then(({ data }) => {
+      if (data.session) location.href = './app.html';
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      message.className = 'message';
+      message.textContent = 'Creating your secure workspace…';
+      submitButton.disabled = true;
+
+      const email = form.email.value.trim();
+      const { data, error } = await sb.auth.signUp({
+        email,
+        password: form.password.value,
+        options: {
+          emailRedirectTo: new URL('./app.html', location.href).href,
+          data: {
+            full_name: form.fullName.value.trim(),
+            organization_name: form.organizationName.value.trim(),
+            website: form.website.value.trim(),
+            industry: form.industry.value,
+            team_size: form.teamSize.value
+          }
+        }
+      });
+
+      if (error) {
+        message.className = 'message error';
+        message.textContent = error.message;
+        submitButton.disabled = false;
+        return;
+      }
+
+      if (data.session) {
+        location.href = './app.html';
+        return;
+      }
+
+      form.reset();
+      message.textContent = `Check ${email} for a confirmation link, then your VaraHQ workspace will be ready.`;
+      submitButton.textContent = 'Confirmation Email Sent';
+    });
+  </script>
+</body>
+</html>
