@@ -1,4 +1,4 @@
-const library = { generatedAssets: [], busy: false };
+const library = { generatedAssets: [], busy: false, categoryFilter: 'All' };
 
 function personalItem(type, id) {
   const column = {brand_asset:'brand_asset_id', template:'template_id', generated_asset:'generated_asset_id'}[type];
@@ -12,7 +12,7 @@ function libraryToggleButton(type, id) {
 
 async function loadLibraryState() {
   const [assetsResult, personalResult] = await Promise.all([
-    sb.from('brand_assets').select('id,organization_id,name,description,category,file_path,original_filename,mime_type,size_bytes,approved,is_primary_logo,created_at').eq('organization_id', state.organization.id).order('created_at', {ascending:false}),
+    sb.from('brand_assets').select('id,organization_id,name,description,category,library_category,file_path,original_filename,mime_type,size_bytes,approved,is_primary_logo,created_at').eq('organization_id', state.organization.id).order('created_at', {ascending:false}),
     sb.from('personal_library_items').select('id,brand_asset_id,template_id,generated_asset_id,created_at').eq('organization_id', state.organization.id).eq('user_id', state.userId).order('created_at', {ascending:false})
   ]);
   if (assetsResult.error || personalResult.error) throw assetsResult.error || personalResult.error;
@@ -77,13 +77,16 @@ function assetPreview(asset) {
 }
 
 function brandAssetCard(asset) {
-  return `<article class="asset-card">${assetPreview(asset)}<div class="asset-body"><div class="template-meta"><strong>${html(asset.name)}</strong>${asset.is_primary_logo?'<span class="pill">Workspace logo</span>':`<span class="pill">${html(asset.category)}</span>`}</div>${asset.description?`<p class="muted">${html(asset.description)}</p>`:''}<small class="muted">${html(asset.original_filename)} · ${formatBytes(asset.size_bytes)}</small><div class="workflow-actions"><button type="button" class="btn" data-brand-download="${asset.id}">Download</button>${libraryToggleButton('brand_asset',asset.id)}${state.isAdmin&&asset.category==='logo'&&!asset.is_primary_logo?`<button type="button" class="btn outline" data-primary-logo="${asset.id}">Use as workspace logo</button>`:''}${state.isAdmin?`<button type="button" class="btn outline danger-button" data-delete-brand="${asset.id}">Delete</button>`:''}</div></div></article>`;
+  return `<article class="asset-card">${assetPreview(asset)}<div class="asset-body"><div class="template-meta"><strong>${html(asset.name)}</strong><span class="pill">${html(asset.library_category || 'General')}</span></div>${asset.is_primary_logo?'<small class="primary-label">Workspace logo</small>':''}${asset.description?`<p class="muted">${html(asset.description)}</p>`:''}<small class="muted">${html(asset.category)} · ${html(asset.original_filename)} · ${formatBytes(asset.size_bytes)}</small>${state.isAdmin?`<div class="category-editor"><input data-brand-category-input="${asset.id}" list="brandCardCategoryOptions" maxlength="80" value="${html(asset.library_category || 'General')}" aria-label="Category for ${html(asset.name)}"><button type="button" class="btn outline" data-save-brand-category="${asset.id}">Save category</button></div>`:''}<div class="workflow-actions"><button type="button" class="btn" data-brand-download="${asset.id}">Download</button>${libraryToggleButton('brand_asset',asset.id)}${state.isAdmin&&asset.category==='logo'&&!asset.is_primary_logo?`<button type="button" class="btn outline" data-primary-logo="${asset.id}">Use as workspace logo</button>`:''}${state.isAdmin?`<button type="button" class="btn outline danger-button" data-delete-brand="${asset.id}">Delete</button>`:''}</div></div></article>`;
 }
 
 function brandLibraryView() {
-  const upload = state.isAdmin ? `<section class="card library-upload"><div><div class="eyebrow">ORGANIZATION ASSETS</div><h2>Add an approved brand file</h2><p class="muted">Upload official logos, icons, guidelines, embroidery files, fonts, and other reusable files. Everyone in ${html(state.organization.name)} can view and download them.</p></div><form id="brandAssetForm" class="upload-form"><label for="brandAssetName">Display name</label><input id="brandAssetName" name="name" type="text" maxlength="160" placeholder="Primary green logo" required><label for="brandAssetCategory">File type</label><select id="brandAssetCategory" name="category"><option value="logo">Logo</option><option value="icon">Icon</option><option value="guideline">Brand guideline</option><option value="embroidery">Embroidery file</option><option value="font">Licensed font</option><option value="other">Other</option></select><label for="brandAssetDescription">Description <span class="muted">(optional)</span></label><textarea id="brandAssetDescription" name="description" maxlength="1000" placeholder="When should the team use this file?"></textarea><label class="file-drop" for="brandAssetFile"><b>Choose an approved file</b><span class="muted"><br>PNG, JPG, SVG, PDF, EPS, AI, DST, PES, EXP, JEF, TTF, or OTF · 50 MB max</span><input id="brandAssetFile" name="file" type="file" accept=".png,.jpg,.jpeg,.svg,.pdf,.eps,.ai,.dst,.pes,.exp,.jef,.ttf,.otf" required></label><label class="check-label"><input name="primary" type="checkbox"> Use this as the workspace logo</label><button class="btn" type="submit">Upload to Brand Library</button><div id="brandAssetMessage" class="form-message" role="status" aria-live="polite"></div></form></section>` : `<div class="notice">These files are approved and managed by your organization’s administrators. Save the ones you use often to My Library.</div>`;
-  const assets = state.brandAssets.length ? `<div class="asset-grid">${state.brandAssets.map(brandAssetCard).join('')}</div>` : `<div class="empty"><h3>No organization files yet</h3><p class="muted">${state.isAdmin?'Upload the first approved logo or brand file above.':'Your administrators have not added any approved files yet.'}</p></div>`;
-  return `${upload}<div class="library-heading"><div><h2>Approved files</h2><p class="muted">Shared with everyone in ${html(state.organization.name)}.</p></div><span class="pill">${state.brandAssets.length} file${state.brandAssets.length===1?'':'s'}</span></div>${assets}`;
+  const upload = state.isAdmin ? `<section class="card library-upload"><div><div class="eyebrow">ORGANIZATION ASSETS</div><h2>Add an approved brand file</h2><p class="muted">Upload official logos, icons, guidelines, embroidery files, fonts, and other reusable files. Everyone in ${html(state.organization.name)} can view and download them.</p></div><form id="brandAssetForm" class="upload-form"><label for="brandAssetName">Display name</label><input id="brandAssetName" name="name" type="text" maxlength="160" placeholder="Primary green logo" required><label for="brandAssetCategory">File type</label><select id="brandAssetCategory" name="category"><option value="logo">Logo</option><option value="icon">Icon</option><option value="guideline">Brand guideline</option><option value="embroidery">Embroidery file</option><option value="font">Licensed font</option><option value="other">Other</option></select><label for="brandLibraryCategory">Library category</label><input id="brandLibraryCategory" name="libraryCategory" type="text" list="brandUploadCategoryOptions" maxlength="80" value="General" required>${categoryDatalist('brandUploadCategoryOptions')}<label for="brandAssetDescription">Description <span class="muted">(optional)</span></label><textarea id="brandAssetDescription" name="description" maxlength="1000" placeholder="When should the team use this file?"></textarea><label class="file-drop" for="brandAssetFile"><b>Choose an approved file</b><span class="muted"><br>PNG, JPG, SVG, PDF, EPS, AI, DST, PES, EXP, JEF, TTF, or OTF · 50 MB max</span><input id="brandAssetFile" name="file" type="file" accept=".png,.jpg,.jpeg,.svg,.pdf,.eps,.ai,.dst,.pes,.exp,.jef,.ttf,.otf" required></label><label class="check-label"><input name="primary" type="checkbox"> Use this as the workspace logo</label><button class="btn" type="submit">Upload to Brand Library</button><div id="brandAssetMessage" class="form-message" role="status" aria-live="polite"></div></form></section>` : `<div class="notice">These files are approved and managed by your organization’s administrators. Save the ones you use often to My Library.</div>`;
+  const categories=[...new Set(state.brandAssets.map(asset=>asset.library_category||'General'))].sort();
+  if(library.categoryFilter!=='All'&&!categories.includes(library.categoryFilter))library.categoryFilter='All';
+  const filtered=state.brandAssets.filter(asset=>library.categoryFilter==='All'||(asset.library_category||'General')===library.categoryFilter);
+  const assets = filtered.length ? `<div class="asset-grid">${filtered.map(brandAssetCard).join('')}</div>` : `<div class="empty"><h3>No files in this category</h3><p class="muted">Choose another category or add an approved file.</p></div>`;
+  return `${upload}<div class="library-heading"><div><div class="eyebrow">ASSET LIBRARY</div><h2>Everything approved, ready when your team needs it</h2><p class="muted">Shared with everyone in ${html(state.organization.name)}.</p></div><span class="pill">${state.brandAssets.length} file${state.brandAssets.length===1?'':'s'}</span></div>${categoryButtons(categories,library.categoryFilter,'data-brand-filter')}${assets}${state.isAdmin?categoryDatalist('brandCardCategoryOptions'):''}`;
 }
 
 function myLibraryView() {
@@ -160,7 +163,7 @@ async function uploadBrandAsset(form) {
     const mime = file.type || 'application/octet-stream';
     const {error:uploadError} = await sb.storage.from('brand-library').upload(path, file, {contentType:mime, cacheControl:'3600', upsert:false});
     if (uploadError) throw uploadError;
-    const {error:insertError} = await sb.from('brand_assets').insert({id:assetId, organization_id:state.organization.id, name:form.elements.name.value.trim(), description:form.elements.description.value.trim()||null, category:form.elements.category.value, file_path:path, original_filename:file.name, mime_type:mime, size_bytes:file.size, approved:true, uploaded_by:state.userId});
+    const {error:insertError} = await sb.from('brand_assets').insert({id:assetId, organization_id:state.organization.id, name:form.elements.name.value.trim(), description:form.elements.description.value.trim()||null, category:form.elements.category.value, library_category:form.elements.libraryCategory.value.trim(), file_path:path, original_filename:file.name, mime_type:mime, size_bytes:file.size, approved:true, uploaded_by:state.userId});
     if (insertError) { await sb.storage.from('brand-library').remove([path]); throw insertError; }
     if (form.elements.primary.checked) {
       const {error} = await sb.rpc('set_primary_brand_logo', {p_asset_id:assetId});
@@ -210,6 +213,16 @@ async function deleteBrandAsset(id) {
   show('brandkit');
 }
 
+async function saveLibraryCategory(table, id, input) {
+  const category=input.value.trim();
+  if(!category||category.length>80){input.focus();return;}
+  const {error}=await sb.from(table).update({library_category:category}).eq('id',id);
+  if(error){input.setCustomValidity(error.message);input.reportValidity();return;}
+  input.setCustomValidity('');
+  if(table==='brand_assets')await loadLibraryState();else await loadTemplates();
+  show(state.currentView);
+}
+
 content.addEventListener('submit', event => {
   if (event.target.id !== 'brandAssetForm') return;
   event.preventDefault();
@@ -217,6 +230,12 @@ content.addEventListener('submit', event => {
 });
 
 content.addEventListener('click', async event => {
+  const brandFilter=event.target.closest('[data-brand-filter]');
+  if(brandFilter){library.categoryFilter=brandFilter.dataset.brandFilter;show('brandkit');return;}
+  const saveBrandCategory=event.target.closest('[data-save-brand-category]');
+  if(saveBrandCategory){const id=saveBrandCategory.dataset.saveBrandCategory;await saveLibraryCategory('brand_assets',id,document.querySelector(`[data-brand-category-input="${id}"]`));return;}
+  const saveTemplateCategory=event.target.closest('[data-save-template-category]');
+  if(saveTemplateCategory){const id=saveTemplateCategory.dataset.saveTemplateCategory;await saveLibraryCategory('templates',id,document.querySelector(`[data-template-category-input="${id}"]`));return;}
   const save = event.target.closest('[data-library-type]');
   if (save) { await toggleLibraryItem(save); return; }
   const brandDownload = event.target.closest('[data-brand-download]');

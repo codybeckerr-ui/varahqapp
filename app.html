@@ -29,14 +29,39 @@
     const shell = document.getElementById('shell');
     const content = document.getElementById('content');
     const title = document.getElementById('title');
-    const state = { profile: null, membership: null, organization: null, templates: [], allTemplates: [], brandAssets: [], allBrandAssets: [], personalItems: [], actualIsAdmin: false, isAdmin: false, previewAsUser: false, currentView: 'home', counts: { templates: 0, members: 0, assets: 0 }, organizationAssetCount: 0, userAssetCount: 0 };
+    const state = { profile: null, membership: null, organization: null, templates: [], allTemplates: [], brandAssets: [], allBrandAssets: [], personalItems: [], actualIsAdmin: false, isAdmin: false, previewAsUser: false, currentView: 'home', homeQuery: '', homeCategory: 'All', counts: { templates: 0, members: 0, assets: 0 }, organizationAssetCount: 0, userAssetCount: 0 };
+    const libraryCategoryOptions = ['General', 'Guides', 'Signage', 'Social', 'Print & Mail', 'Stationery', 'Logos', 'Icons', 'Embroidery', 'Fonts'];
 
     function escapeHtml(value) {
       return String(value ?? '').replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
     }
 
+    function categoryDatalist(id) {
+      return `<datalist id="${id}">${libraryCategoryOptions.map(category => `<option value="${escapeHtml(category)}">`).join('')}</datalist>`;
+    }
+
+    function adminDashboardView() {
+      return `<p class="muted">Welcome${state.profile?.full_name ? `, ${escapeHtml(state.profile.full_name)}` : ''}. Manage your organization's approved brand assets.</p><div class="grid"><div class="card"><div class="muted">Published Templates</div><div class="metric">${state.counts.templates}</div></div><div class="card"><div class="muted">Team Members</div><div class="metric">${state.counts.members}</div></div><div class="card"><div class="muted">Generated Assets</div><div class="metric">${state.counts.assets}</div></div></div><div class="card" style="margin-top:18px"><h3>${state.templates.length ? 'Manage your template library' : 'Start with your first template'}</h3><p class="muted">Upload a Canva-exported PDF as a locked master, then configure and approve its variable fields.</p><button class="btn" onclick="show('templates')">Upload a Template</button></div>`;
+    }
+
+    function categoryButtons(categories, active, attribute) {
+      return `<div class="category-chips" aria-label="Filter by category"><button type="button" class="category-chip ${active==='All'?'active':''}" ${attribute}="All">All assets</button>${categories.map(category => `<button type="button" class="category-chip ${active===category?'active':''}" ${attribute}="${escapeHtml(category)}">${escapeHtml(category)}</button>`).join('')}</div>`;
+    }
+
+    function readyTemplateCard(template) {
+      return `<article class="ready-card"><div class="ready-art"><span>${escapeHtml(template.library_category || 'General')}</span><strong>${escapeHtml(template.name)}</strong><small>Approved by ${escapeHtml(state.organization.name)}</small></div><div class="ready-body"><div><strong>${escapeHtml(template.name)}</strong><p>${escapeHtml(template.library_category || 'General')} · PDF</p></div><div class="ready-actions"><button class="btn" data-personalize-template="${template.id}">Personalize</button>${libraryToggleButton('template',template.id)}</div></div></article>`;
+    }
+
+    function userDashboardView() {
+      const name = state.profile?.full_name?.trim().split(/\s+/)[0] || 'there';
+      const categories = [...new Set(state.templates.map(template => template.library_category || 'General'))].sort();
+      const query = state.homeQuery.toLowerCase();
+      const filtered = state.templates.filter(template => (state.homeCategory === 'All' || (template.library_category || 'General') === state.homeCategory) && (!query || `${template.name} ${template.description || ''} ${template.library_category || ''}`.toLowerCase().includes(query)));
+      return `<section class="user-welcome"><div class="eyebrow">YOUR WORKSPACE</div><h2>Welcome back, ${escapeHtml(name)}</h2><p>Every template here is approved and ready for your details.</p><div class="workspace-callout"><div><small>READY WHEN YOU ARE</small><strong>Choose a template, personalize the approved fields, and download.</strong></div><button class="btn" onclick="show('templates')">Open Library</button></div></section><div class="user-metrics"><div class="card"><div class="metric">${state.counts.templates}</div><span>Templates ready for you</span></div><div class="card"><div class="metric">${state.personalItems.length}</div><span>Items saved to My Library</span></div><div class="card"><div class="metric">${state.userAssetCount}</div><span>Your generated files</span></div></div><section class="ready-section"><div class="ready-heading"><div><h2>Ready for you</h2><p class="muted">Find an approved design and make it yours.</p></div><label class="asset-search"><span aria-hidden="true">⌕</span><input type="search" data-home-search value="${escapeHtml(state.homeQuery)}" placeholder="Search templates"></label></div>${categoryButtons(categories,state.homeCategory,'data-home-category')}${filtered.length?`<div class="ready-grid">${filtered.map(readyTemplateCard).join('')}</div>`:`<div class="empty"><h3>No matching templates</h3><p class="muted">Try another search or category.</p></div>`}</section>`;
+    }
+
     const views = {
-      home: () => `<p class="muted">Welcome${state.profile?.full_name ? `, ${escapeHtml(state.profile.full_name)}` : ''}. ${state.isAdmin ? "Manage your organization's approved brand assets." : 'Generate brand-compliant files from templates approved by your administrators.'}</p><div class="grid"><div class="card"><div class="muted">Published Templates</div><div class="metric">${state.counts.templates}</div></div><div class="card"><div class="muted">Team Members</div><div class="metric">${state.counts.members}</div></div><div class="card"><div class="muted">Generated Assets</div><div class="metric">${state.counts.assets}</div></div></div><div class="card" style="margin-top:18px"><h3>${state.isAdmin ? (state.templates.length ? 'Manage your template library' : 'Start with your first template') : (state.templates.length ? 'Create an approved asset' : 'No approved templates yet')}</h3><p class="muted">${state.isAdmin ? 'Upload a Canva-exported PDF as a locked master, then configure and approve its variable fields.' : 'Choose a published template, enter the allowed information, and download the finished file.'}</p><button class="btn" onclick="show('templates')">${state.isAdmin ? 'Upload a Template' : 'View Approved Templates'}</button></div>`,
+      home: () => state.isAdmin ? adminDashboardView() : userDashboardView(),
       templates: () => `${state.isAdmin ? uploadPanel() : '<div class="notice">Your administrators control the designs and fields. You can personalize and download the approved templates below.</div>'}${templateLibrary()}`,
       builder: () => '<div class="card">Choose a template from Templates to configure its fields.</div>',
       team: () => `<div class="card"><h3>Team</h3><p class="muted">${state.counts.members} organization member${state.counts.members === 1 ? '' : 's'}. Your access level is <b>${state.isAdmin ? 'Admin' : 'User'}</b>.</p><div class="notice"><b>Admins</b> add, configure, test, approve, and publish templates. <b>Users</b> personalize and download published templates.</div></div>`,
@@ -46,7 +71,7 @@
     };
 
     function uploadPanel() {
-      return `<section class="card upload-panel"><div><div class="eyebrow">NEW TEMPLATE</div><h2>Upload a locked master PDF</h2><p class="muted">The original artwork stays private and unchanged. VaraHQ will add a controlled variable layer after the template is configured.</p><ol class="steps"><li>Export the approved design from Canva as PDF.</li><li>Upload it here to create a private draft.</li><li>Configure fields, permissions, and fitting rules.</li><li>Test before publishing to your team.</li></ol></div><form id="templateUploadForm" class="upload-form"><label for="templateName">Template name</label><input id="templateName" name="templateName" type="text" maxlength="120" placeholder="Business Card" required><label for="templateDescription">Description <span class="muted">(optional)</span></label><textarea id="templateDescription" name="templateDescription" maxlength="500" placeholder="Who should use this template?"></textarea><label class="file-drop" for="templateFile"><b>Choose a Canva-exported PDF</b><span class="muted"><br>PDF only · maximum 25 MB</span><input id="templateFile" name="templateFile" type="file" accept="application/pdf,.pdf" required></label><button id="templateUploadButton" class="btn" type="submit" style="width:100%;margin-top:16px">Upload & Create Draft</button><div id="templateUploadMessage" class="form-message" role="status" aria-live="polite"></div></form></section>`;
+      return `<section class="card upload-panel"><div><div class="eyebrow">NEW TEMPLATE</div><h2>Upload a locked master PDF</h2><p class="muted">The original artwork stays private and unchanged. VaraHQ will add a controlled variable layer after the template is configured.</p><ol class="steps"><li>Export the approved design from Canva as PDF.</li><li>Upload it here to create a private draft.</li><li>Configure fields, permissions, and fitting rules.</li><li>Test before publishing to your team.</li></ol></div><form id="templateUploadForm" class="upload-form"><label for="templateName">Template name</label><input id="templateName" name="templateName" type="text" maxlength="120" placeholder="Business Card" required><label for="templateCategory">Library category</label><input id="templateCategory" name="templateCategory" type="text" list="templateCategoryOptions" maxlength="80" value="General" required>${categoryDatalist('templateCategoryOptions')}<label for="templateDescription">Description <span class="muted">(optional)</span></label><textarea id="templateDescription" name="templateDescription" maxlength="500" placeholder="Who should use this template?"></textarea><label class="file-drop" for="templateFile"><b>Choose a Canva-exported PDF</b><span class="muted"><br>PDF only · maximum 25 MB</span><input id="templateFile" name="templateFile" type="file" accept="application/pdf,.pdf" required></label><button id="templateUploadButton" class="btn" type="submit" style="width:100%;margin-top:16px">Upload & Create Draft</button><div id="templateUploadMessage" class="form-message" role="status" aria-live="polite"></div></form></section>`;
     }
 
     function templateLibrary() {
@@ -86,7 +111,7 @@
     }
 
     async function loadTemplates() {
-      const { data, error } = await sb.from('templates').select('id,name,description,status,current_version,revision,master_file_path,created_at,updated_at').eq('organization_id', state.organization.id).order('updated_at', {ascending:false});
+      const { data, error } = await sb.from('templates').select('id,name,description,status,current_version,revision,master_file_path,library_category,created_at,updated_at').eq('organization_id', state.organization.id).order('updated_at', {ascending:false});
       if (error) throw error;
       state.allTemplates = data || [];
       state.templates = state.isAdmin ? [...state.allTemplates] : state.allTemplates.filter(template => template.status === 'published');
@@ -102,6 +127,7 @@
       const file = form.templateFile.files[0];
       const name = form.templateName.value.trim();
       const description = form.templateDescription.value.trim();
+      const libraryCategory = form.templateCategory.value.trim();
       if (!file || !name) return;
       if (!file.name.toLowerCase().endsWith('.pdf') || (file.type && file.type !== 'application/pdf')) {
         message.className = 'form-message error'; message.textContent = 'Please choose a PDF file.'; return;
@@ -117,7 +143,7 @@
       try {
         const { error: uploadError } = await sb.storage.from('template-masters').upload(masterPath, file, {contentType:'application/pdf', cacheControl:'3600', upsert:false});
         if (uploadError) throw uploadError;
-        const { error: insertError } = await sb.from('templates').insert({id:templateId, organization_id:state.organization.id, name, description:description || null, status:'draft', master_file_path:masterPath, created_by:state.userId});
+        const { error: insertError } = await sb.from('templates').insert({id:templateId, organization_id:state.organization.id, name, description:description || null, library_category:libraryCategory, status:'draft', master_file_path:masterPath, created_by:state.userId});
         if (insertError) {
           await sb.storage.from('template-masters').remove([masterPath]);
           throw insertError;
@@ -134,6 +160,25 @@
     }
 
     document.querySelectorAll('.nav button').forEach(button => button.addEventListener('click', () => show(button.dataset.view)));
+    let homeSearchTimer;
+    content.addEventListener('input', event => {
+      if (!event.target.matches('[data-home-search]')) return;
+      const value = event.target.value;
+      clearTimeout(homeSearchTimer);
+      homeSearchTimer = setTimeout(() => {
+        state.homeQuery = value;
+        show('home');
+        const search = document.querySelector('[data-home-search]');
+        search?.focus();
+        search?.setSelectionRange(value.length, value.length);
+      }, 180);
+    });
+    content.addEventListener('click', event => {
+      const category = event.target.closest('[data-home-category]');
+      if (!category) return;
+      state.homeCategory = category.dataset.homeCategory;
+      show('home');
+    });
     document.getElementById('rolePreviewToggle').addEventListener('click', toggleRolePreview);
     document.getElementById('exitUserPreview').addEventListener('click', toggleRolePreview);
     document.getElementById('logout').addEventListener('click', async () => { await sb.auth.signOut(); location.href = './index.html'; });
