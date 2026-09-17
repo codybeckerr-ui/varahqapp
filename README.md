@@ -16,6 +16,7 @@ The master must contain selectable horizontal text placeholders, such as `{{FULL
 ## Server boundaries
 
 - `api/template.py`: Vercel Python/FastAPI API. Validates the Supabase user token; reads tenant-scoped source and configuration with that token. It has no service-role key. Uses `renderer/engine.py` for detection, compilation, fitting and PDF/image rendering.
+- Organization access is presented as two levels: Admins (`owner` and `admin` database roles) manage draft templates and publication; Users (`manager` and `member` roles) can only see, personalize, generate, and download published templates. Database RLS and server checks enforce these boundaries independently of the interface.
 - `supabase/functions/template-workflow/index.ts`: authenticated gateway. Verifies the user and database membership; calls the fixed renderer URL; persists successful compilations, publishing state and generated outputs using its server-only credential.
 - Publishing is restricted to server RPCs. Field mutations increment the revision and invalidate test eligibility. Published fields cannot be modified until returned to Draft.
 - Member generation accepts only template identity, output format and allowed values. Profile values and design rules are resolved on the server.

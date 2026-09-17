@@ -35,10 +35,10 @@
     }
 
     const views = {
-      home: () => `<p class="muted">Welcome${state.profile?.full_name ? `, ${escapeHtml(state.profile.full_name)}` : ''}. Manage your organization's approved brand assets.</p><div class="grid"><div class="card"><div class="muted">Published Templates</div><div class="metric">${state.counts.templates}</div></div><div class="card"><div class="muted">Team Members</div><div class="metric">${state.counts.members}</div></div><div class="card"><div class="muted">Generated Assets</div><div class="metric">${state.counts.assets}</div></div></div><div class="card" style="margin-top:18px"><h3>${state.templates.length ? 'Manage your template library' : 'Start with your first template'}</h3><p class="muted">Upload a Canva-exported PDF as a locked master, then configure its approved variable fields.</p><button class="btn" onclick="show('templates')">${state.isAdmin ? 'Upload a Template' : 'View Templates'}</button></div>`,
-      templates: () => `${state.isAdmin ? uploadPanel() : '<div class="notice">Only organization owners and admins can upload master templates. You can view published templates below.</div>'}${templateLibrary()}`,
+      home: () => `<p class="muted">Welcome${state.profile?.full_name ? `, ${escapeHtml(state.profile.full_name)}` : ''}. ${state.isAdmin ? "Manage your organization's approved brand assets." : 'Generate brand-compliant files from templates approved by your administrators.'}</p><div class="grid"><div class="card"><div class="muted">Published Templates</div><div class="metric">${state.counts.templates}</div></div><div class="card"><div class="muted">Team Members</div><div class="metric">${state.counts.members}</div></div><div class="card"><div class="muted">Generated Assets</div><div class="metric">${state.counts.assets}</div></div></div><div class="card" style="margin-top:18px"><h3>${state.isAdmin ? (state.templates.length ? 'Manage your template library' : 'Start with your first template') : (state.templates.length ? 'Create an approved asset' : 'No approved templates yet')}</h3><p class="muted">${state.isAdmin ? 'Upload a Canva-exported PDF as a locked master, then configure and approve its variable fields.' : 'Choose a published template, enter the allowed information, and download the finished file.'}</p><button class="btn" onclick="show('templates')">${state.isAdmin ? 'Upload a Template' : 'View Approved Templates'}</button></div>`,
+      templates: () => `${state.isAdmin ? uploadPanel() : '<div class="notice">Your administrators control the designs and fields. You can personalize and download the approved templates below.</div>'}${templateLibrary()}`,
       builder: () => '<div class="card">Choose a template from Templates to configure its fields.</div>',
-      team: () => `<div class="card"><h3>Team</h3><p class="muted">${state.counts.members} organization member${state.counts.members === 1 ? '' : 's'}. Your role is <b>${escapeHtml(state.membership.role)}</b>.</p></div>`,
+      team: () => `<div class="card"><h3>Team</h3><p class="muted">${state.counts.members} organization member${state.counts.members === 1 ? '' : 's'}. Your access level is <b>${state.isAdmin ? 'Admin' : 'User'}</b>.</p><div class="notice"><b>Admins</b> add, configure, test, approve, and publish templates. <b>Users</b> personalize and download published templates.</div></div>`,
       brandkit: () => `<div class="card"><h3>Brand Kit</h3><p class="muted">Approved logos, fonts, colors and disclaimers for ${escapeHtml(state.organization.name)}.</p></div>`,
       downloads: () => `<div class="empty"><h3>No generated assets yet</h3><p class="muted">Generated PDF, PNG and JPG assets will be recorded here.</p></div>`
     };
@@ -127,6 +127,8 @@
       state.userId = session.user.id;
       state.isAdmin = ['owner', 'admin'].includes(state.membership.role);
       document.querySelector('[data-view=builder]').hidden = !state.isAdmin;
+      document.querySelector('[data-view=team]').hidden = !state.isAdmin;
+      document.querySelector('[data-view=brandkit]').hidden = !state.isAdmin;
       state.organization = Array.isArray(membershipResult.data.organizations) ? membershipResult.data.organizations[0] : membershipResult.data.organizations;
       if (!state.organization) throw new Error('Your organization could not be loaded.');
 
@@ -142,7 +144,7 @@
       await loadTemplates();
 
       document.getElementById('sidebarOrganization').textContent = state.organization.name;
-      document.getElementById('sidebarRole').textContent = state.membership.role;
+      document.getElementById('sidebarRole').textContent = state.isAdmin ? 'Admin' : 'User';
       document.getElementById('organizationEyebrow').textContent = state.organization.name.toUpperCase();
       loading.classList.add('hidden');
       shell.classList.remove('hidden');

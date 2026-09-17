@@ -1,5 +1,6 @@
 /* Admin setup and member generation share template identity, never design authority. */
-const workflow = { template: null, fields: [], fonts: [], pages: [], warnings: [], selected: 0, values: {}, preview: '', report: null, dirty: false, busy: false, mode: 'builder' };
+const workflow = { template: null, fields: [], fonts: [], pages: [], warnings: [], selected: 0, values: {}, preview: '', report: null, dirty: false, busy: false, mode: 'builder', fontQuery: '' };
+const googleCatalog = {fonts:[], query:'', loaded:false};
 const apiBase = location.protocol === 'file:' ? 'https://varahqapp.vercel.app' : '';
 const workflowPublishableKey = 'sb_publishable_R4UOrzo-lb95ExANWotdPw_2VSADYzc';
 const html = escapeHtml;
@@ -48,6 +49,10 @@ function fontOptions(field) {
   const selected=field.style_metadata.font_id;
   return `<option value="">Choose a full font…</option>${workflow.fonts.map(f=>`<option value="${html(f.id)}" ${selected===f.id?'selected':''}>${html(f.name)}</option>`).join('')}`;
 }
+function googleFontSearch(context='builder') {
+  const value=context==='brandkit'?googleCatalog.query:workflow.fontQuery;
+  return `<div class="font-search"><label for="googleFontQuery">Find a Google Font</label><div><input id="googleFontQuery" value="${html(value)}" maxlength="80" placeholder="Roboto, Lato, Montserrat…"><button type="button" class="btn outline" data-workflow="google-fonts" data-font-context="${context}">Search</button></div></div>`;
+}
 function fieldInput(label,key,type='number',attributes='') {
   const f=workflow.fields[workflow.selected];
   return `<label for="field-${key}">${label}</label><input id="field-${key}" data-rule="${key}" type="${type}" value="${html(f[key])}" ${attributes}>`;
@@ -61,6 +66,9 @@ function fieldInspector() {
     <label for="field-source">Data source</label><select id="field-source" data-rule="data_source">${[['custom','Custom value'],['user.full_name','Profile · Full name'],['user.title','Profile · Title'],['user.email','Profile · Email'],['user.phone','Profile · Phone'],['user.website','Profile · Website']].map(([v,l])=>`<option value="${v}" ${f.data_source===v?'selected':''}>${l}</option>`).join('')}</select>
     <p class="muted">Original font: ${html(f.style_metadata.source_font || f.font_family)}</p>
     <label for="field-font">Approved full font</label><select id="field-font" data-meta="font_id">${fontOptions(f)}</select>
+    ${f.style_metadata.font_match==='exact'?'<p class="form-message success">Exact Google Fonts family and style detected from the PDF. Review it before publishing.</p>':''}
+    ${googleFontSearch()}
+    ${workflow.fontsStatus && workflow.fontsStatus!=='connected'?`<p class="form-message error">${html(workflow.fontsStatus)}</p>`:''}
     <div class="rule-grid">${fieldInput('Size (pt)','font_size','number','step="0.1" min="3" max="200"')}${fieldInput('Minimum (pt)','min_font_size','number','step="0.1" min="3" max="200"')}</div>
     ${fieldInput('Text color','text_color','color')}
     ${f.style_metadata.source_effect?`<label class="check-label"><input type="checkbox" data-meta="effect_approved" ${f.style_metadata.effect_approved?'checked':''}> Approve replacing the original text effect with this solid color</label>`:''}
@@ -104,6 +112,11 @@ function personalizationView() {
 function paintWorkflow() { title.textContent=workflow.mode==='builder'?'Template Builder':'Personalize';content.innerHTML=workflow.mode==='builder'?builderView():personalizationView();updateWorkflowButtons(); }
 views.builder=builderView;
 views.personalize=personalizationView;
+function brandKitView() {
+ const configured=googleCatalog.loaded;
+ return `<div class="card"><h3>Brand Fonts</h3><p class="muted">Search the live Google Fonts catalog. Fonts selected in a template are validated and embedded into that published template for consistent output.</p>${googleFontSearch('brandkit')}<div id="fontCatalogMessage" class="form-message" role="status"></div><div class="font-catalog">${configured?(googleCatalog.fonts.length?googleCatalog.fonts.map(f=>`<div class="font-result"><strong>${html(f.family)}</strong><span>${html(f.variant)} · ${html(f.category)}</span></div>`).join(''):'No matching Google Fonts found.'):'Search by family name, or leave the search blank to see popular fonts.'}</div><div class="notice">Organization font uploads remain available inside each draft template for licensed fonts that are not in Google Fonts.</div></div>`;
+}
+views.brandkit=brandKitView;
 templateLibrary=function() {
  if(!state.templates.length) return '<div class="empty"><h3>No templates yet</h3><p>Upload a master PDF to begin.</p></div>';
  return `<div class="templates">${state.templates.map(t=>`<article class="template"><div class="preview">PDF MASTER</div><div class="body"><div class="template-meta"><strong>${html(t.name)}</strong><span class="pill">${html(t.status)}</span></div><p class="muted">${html(t.description || '')}</p><div class="workflow-actions">${state.isAdmin?`<button class="btn outline" data-open-template="${t.id}">${t.status==='published'?'View Configuration':'Configure & Publish'}</button>`:''}${t.status==='published'?`<button class="btn" data-personalize-template="${t.id}">Personalize</button>`:''}</div></div></article>`).join('')}</div>`;
@@ -155,6 +168,18 @@ content.addEventListener('click',event=>{
    const buffer=new Uint8Array(await file.arrayBuffer());let binary='';for(const byte of buffer)binary+=String.fromCharCode(byte);
    const result=await templateRequest('font_upload',{organization_id:state.organization.id,font:btoa(binary),licensed:true},true);
    workflow.fonts.push(result);paintWorkflow();workflowMessage(`${result.name} uploaded. Select it for the matching fields.`);
+  } else if(action==='google-fonts') {
+   const context=event.target.closest('[data-workflow]').dataset.fontContext || 'builder';
+   const query=document.getElementById('googleFontQuery')?.value.trim() || '';
+   const result=await templateRequest('font_catalog',{organization_id:state.organization.id,query,limit:80});
+   if(context==='brandkit') {
+    Object.assign(googleCatalog,{fonts:result.fonts,query,loaded:true});content.innerHTML=brandKitView();
+    const message=document.getElementById('fontCatalogMessage');if(message){message.className='form-message success';message.textContent=`${result.fonts.length} font style${result.fonts.length===1?'':'s'} shown.`;}
+   } else {
+    workflow.fontQuery=query;
+    const known=new Set(workflow.fonts.map(f=>f.id));for(const font of result.fonts)if(!known.has(font.id))workflow.fonts.push(font);
+    paintWorkflow();workflowMessage(`${result.fonts.length} Google Font style${result.fonts.length===1?'':'s'} added to the font list.`);
+   }
   } else if(action==='personalize') {await openTemplate(workflow.template.id,'personalize');}
   else if(action==='preview'||action==='generate') {
    const values=Object.fromEntries(workflow.fields.filter(f=>f.user_editable).map(f=>[f.variable_name,workflow.values[f.variable_name]||'']));

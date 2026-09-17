@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from renderer.engine import (BUILTIN_FONTS,TemplateError,compile_template,detect,document,preview,render,resolve_values,validate_fields,b64,unb64,validate_font)
+from renderer.google_fonts import download_font, list_fonts, match_source_font
 
 URL='https://wzgfzopxltgfkejpofat.supabase.co'
 KEY='sb_publishable_R4UOrzo-lb95ExANWotdPw_2VSADYzc'
@@ -36,7 +37,7 @@ class Backend:
         return r.content
 
 @app.get('/api/template')
-def health(): return {'service':'VaraHQ template renderer','version':1}
+def health(): return {'service':'VaraHQ template renderer','version':2}
 
 @app.post('/api/template')
 async def endpoint(request:Request):
@@ -49,6 +50,11 @@ async def endpoint(request:Request):
         db=Backend(request.headers.get('authorization',''))
         user=db.request('GET','/auth/v1/user').json()
         action=body.get('action')
+        if action=='font_catalog':
+            organization_id=str(uuid.UUID(body['organization_id']))
+            memberships=db.rows('organization_members',organization_id='eq.'+organization_id,user_id='eq.'+user['id'])
+            if not memberships or memberships[0]['role'] not in ('owner','admin'): raise PermissionError('Administrator access required.')
+            return {'fonts':list_fonts(body.get('query',''),body.get('limit',80))}
         if action=='font_check':
             data=unb64(body.get('font',''))
             if len(data)>5*1024*1024: raise TemplateError('Font files must be at most 5 MB.')
@@ -72,6 +78,18 @@ async def endpoint(request:Request):
             fonts=db.rows('organization_fonts',organization_id='eq.'+template['organization_id'])
         if action in ('inspect','detect'):
             detected=detect(master)
+            result_fields=fields if fields and action=='inspect' else detected['fields']
+            google_fonts=[]; fonts_status='connected'
+            try:
+                for field in result_fields:
+                    if not field.get('style_metadata',{}).get('font_id'):
+                        match=match_source_font(field.get('style_metadata',{}).get('source_font') or field.get('font_family'))
+                        if match:
+                            field['style_metadata']['font_id']=match['id']; field['font_family']=match['family']; field['font_weight']=match['variant']
+                            field['style_metadata']['font_match']='exact'
+                selected_google=[f.get('style_metadata',{}).get('font_id','') for f in result_fields if f.get('style_metadata',{}).get('font_id','').startswith('google:')]
+                google_fonts=list_fonts(limit=50,selected_ids=selected_google)
+            except TemplateError as exc: fonts_status=str(exc)
             saved_test={}
             if action=='inspect' and template['status'] in ('testing','published'):
                 records=db.rows('template_compilations',template_id='eq.'+template_id,revision='eq.'+str(template['revision']))
@@ -79,7 +97,7 @@ async def endpoint(request:Request):
                     compiled=json.loads(db.file('template-compiled',records[0]['bundle_path']))
                     tested,_=render(compiled,records[0]['report']['tested_values'])
                     saved_test={'report':records[0]['report'],'testPreview':preview(tested)}
-            return {**saved_test,'template':template,'fields':fields if fields and action=='inspect' else detected['fields'],'warnings':detected['warnings'],'pages':detected['pages'],'preview':preview(master),'fonts':[{'id':name,'name':name} for name in BUILTIN_FONTS]+[{'id':f['id'],'name':f['name']} for f in fonts], 'profile':{k:profile.get(k,'') for k in ('full_name','email','title','phone','website')}}
+            return {**saved_test,'template':template,'fields':result_fields,'warnings':detected['warnings'],'pages':detected['pages'],'preview':preview(master),'fonts':[{'id':name,'name':name,'source':'built-in'} for name in BUILTIN_FONTS]+google_fonts+[{'id':f['id'],'name':f['name'],'source':'organization'} for f in fonts], 'fontsStatus':fonts_status,'profile':{k:profile.get(k,'') for k in ('full_name','email','title','phone','website')}}
         if action=='save':
             incoming=body.get('fields'); validate_fields(incoming,detect(master)['pages'])
             revision=db.request('POST','/rest/v1/rpc/save_template_fields',json={'p_template_id':template_id,'p_revision':body.get('revision'),'p_fields':incoming}).json()
@@ -91,6 +109,8 @@ async def endpoint(request:Request):
             for f in fields:
                 fid=f['style_metadata'].get('font_id')
                 if fid in font_data: continue
+                if isinstance(fid,str) and fid.startswith('google:'):
+                    font_data[fid]=download_font(fid); continue
                 found=next((font for font in fonts if font['id']==fid),None)
                 if found: font_data[fid]=db.file('brand-fonts',found['file_path'])
             bundle=compile_template(master,fields,font_data)
