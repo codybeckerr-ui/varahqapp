@@ -6,7 +6,7 @@
   <title>VaraHQ Workspace</title>
   <link rel="icon" type="image/png" href="./assets/vara-logo-full.png">
   <style>
-    :root{--g:#0F2D24;--s:#7A9B87;--c:#1F1F1F;--st:#E8E7E1;--w:#FFFFFF;--bg:#E8E7E1;--line:#c8d3cc;--mut:#687871;--danger:#9c2f2f}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--g)}button,input,select{font:inherit}.hidden{display:none!important}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}.side{background:var(--g);color:var(--w);padding:24px 18px;display:flex;flex-direction:column}.brand{display:block;background:var(--w);border-radius:10px;overflow:hidden;margin:0 4px 28px}.brand-logo{display:block;width:100%;height:auto}.mobile-brand{display:none}.nav button{width:100%;text-align:left;background:none;border:0;color:#dce7e2;padding:12px;border-radius:8px;cursor:pointer;margin:2px 0}.nav button:hover,.nav button.active{background:#ffffff14;color:var(--w)}.organization{margin-top:auto;color:#dce7e2;padding:10px;display:grid;gap:3px}.organization small{color:#9fb1a8}.main{padding:38px;max-width:1250px;width:100%;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;gap:20px}.eyebrow{font-size:11px;letter-spacing:.17em;font-weight:900;color:var(--s)}h1{font-size:38px;margin:8px 0}.muted{color:var(--mut)}.btn{border:0;border-radius:8px;padding:12px 17px;background:var(--g);color:var(--w);font-weight:800;cursor:pointer}.outline{background:var(--w);color:var(--g);border:1px solid var(--s)}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}.card{background:var(--w);border:1px solid var(--line);border-radius:14px;padding:22px}.metric{font-size:31px;font-weight:900;margin-top:7px}.templates{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}.template{background:var(--w);border:1px solid var(--line);border-radius:14px;overflow:hidden}.preview{height:180px;background:linear-gradient(135deg,var(--st) 0 55%,var(--s) 55%);display:grid;place-items:center;color:var(--w);font-weight:900}.template .body{padding:17px}.pill{font-size:11px;background:var(--st);padding:5px 8px;border-radius:99px}.empty{padding:55px;text-align:center;background:var(--w);border:1px dashed var(--s);border-radius:14px;margin-top:28px}.builder{display:grid;grid-template-columns:1fr 310px;gap:20px;margin-top:25px}.canvas{min-height:520px;background:var(--st);border-radius:14px;display:grid;place-items:center;padding:30px}.page{background:var(--w);width:min(100%,640px);aspect-ratio:1.75;box-shadow:0 15px 35px #0f2d2420;position:relative}.field{position:absolute;left:10%;top:18%;width:52%;border:2px solid var(--s);padding:10px;color:var(--w);background:var(--g)}.inspector{background:var(--w);border:1px solid var(--line);border-radius:14px;padding:20px}.inspector label{display:block;font-size:11px;font-weight:800;margin:15px 0 6px}.inspector input,.inspector select{width:100%;padding:10px;border:1px solid var(--s);border-radius:7px;color:var(--c);background:var(--w)}.notice{background:var(--st);border:1px solid var(--s);padding:13px;border-radius:9px;font-size:12px;line-height:1.5;margin-top:18px}.auth{min-height:100vh;display:grid;place-items:center;padding:20px}.authbox{background:var(--w);border:1px solid var(--s);border-radius:16px;padding:30px;max-width:460px}.auth-logo{display:block;width:min(100%,210px);height:auto;margin-bottom:18px}.error{color:var(--danger)}@media(max-width:850px){.shell{grid-template-columns:1fr}.side{display:none}.main{padding:22px}.mobile-brand{display:block;width:150px;height:auto;margin:0 0 20px}.grid,.templates{grid-template-columns:1fr}.builder{grid-template-columns:1fr}.inspector{order:-1}}
+    :root{--g:#0F2D24;--s:#7A9B87;--c:#1F1F1F;--st:#E8E7E1;--w:#FFFFFF;--bg:#E8E7E1;--line:#c8d3cc;--mut:#687871;--danger:#9c2f2f;--success:#286344}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--g)}button,input,select{font:inherit}.hidden{display:none!important}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}.side{background:var(--g);color:var(--w);padding:24px 18px;display:flex;flex-direction:column}.brand{display:block;background:var(--w);border-radius:10px;overflow:hidden;margin:0 4px 28px}.brand-logo{display:block;width:100%;height:auto}.mobile-brand{display:none}.nav button{width:100%;text-align:left;background:none;border:0;color:#dce7e2;padding:12px;border-radius:8px;cursor:pointer;margin:2px 0}.nav button:hover,.nav button.active{background:#ffffff14;color:var(--w)}.organization{margin-top:auto;color:#dce7e2;padding:10px;display:grid;gap:3px}.organization small{color:#9fb1a8}.main{padding:38px;max-width:1250px;width:100%;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;gap:20px}.eyebrow{font-size:11px;letter-spacing:.17em;font-weight:900;color:var(--s)}h1{font-size:38px;margin:8px 0}.muted{color:var(--mut)}.btn{border:0;border-radius:8px;padding:12px 17px;background:var(--g);color:var(--w);font-weight:800;cursor:pointer}.btn:disabled{opacity:.55;cursor:not-allowed}.outline{background:var(--w);color:var(--g);border:1px solid var(--s)}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}.card{background:var(--w);border:1px solid var(--line);border-radius:14px;padding:22px}.metric{font-size:31px;font-weight:900;margin-top:7px}.upload-panel{display:grid;grid-template-columns:1.2fr .8fr;gap:28px;align-items:start;margin-top:25px}.upload-form label{display:block;font-size:12px;font-weight:800;margin:16px 0 7px}.upload-form input[type=text],.upload-form textarea{width:100%;padding:12px;border:1px solid var(--s);border-radius:8px;color:var(--c);background:var(--w)}.upload-form textarea{min-height:84px;resize:vertical}.file-drop{display:block;border:2px dashed var(--s);border-radius:12px;padding:28px;text-align:center;background:#f8faf8;cursor:pointer}.file-drop:hover{background:var(--st)}.file-drop input{display:block;margin:13px auto 0;max-width:100%}.steps{margin:0;padding-left:20px;color:var(--mut);line-height:1.7}.form-message{min-height:22px;margin:12px 0 0;font-size:13px}.success{color:var(--success)}.templates{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}.template{background:var(--w);border:1px solid var(--line);border-radius:14px;overflow:hidden}.preview{height:180px;background:linear-gradient(135deg,var(--st) 0 55%,var(--s) 55%);display:grid;place-items:center;color:var(--w);font-weight:900}.template .body{padding:17px}.template-meta{display:flex;justify-content:space-between;align-items:center;gap:8px}.pill{font-size:11px;background:var(--st);padding:5px 8px;border-radius:99px;text-transform:capitalize}.empty{padding:55px;text-align:center;background:var(--w);border:1px dashed var(--s);border-radius:14px;margin-top:28px}.builder{display:grid;grid-template-columns:1fr 310px;gap:20px;margin-top:25px}.canvas{min-height:520px;background:var(--st);border-radius:14px;display:grid;place-items:center;padding:30px}.page{background:var(--w);width:min(100%,640px);aspect-ratio:1.75;box-shadow:0 15px 35px #0f2d2420;position:relative}.field{position:absolute;left:10%;top:18%;width:52%;border:2px solid var(--s);padding:10px;color:var(--w);background:var(--g)}.inspector{background:var(--w);border:1px solid var(--line);border-radius:14px;padding:20px}.inspector label{display:block;font-size:11px;font-weight:800;margin:15px 0 6px}.inspector input,.inspector select{width:100%;padding:10px;border:1px solid var(--s);border-radius:7px;color:var(--c);background:var(--w)}.notice{background:var(--st);border:1px solid var(--s);padding:13px;border-radius:9px;font-size:12px;line-height:1.5;margin-top:18px}.auth{min-height:100vh;display:grid;place-items:center;padding:20px}.authbox{background:var(--w);border:1px solid var(--s);border-radius:16px;padding:30px;max-width:460px}.auth-logo{display:block;width:min(100%,210px);height:auto;margin-bottom:18px}.error{color:var(--danger)}@media(max-width:850px){.shell{grid-template-columns:1fr}.side{display:none}.main{padding:22px}.mobile-brand{display:block;width:150px;height:auto;margin:0 0 20px}.grid,.templates,.upload-panel{grid-template-columns:1fr}.builder{grid-template-columns:1fr}.inspector{order:-1}}
   </style>
 </head>
 <body>
@@ -27,25 +27,83 @@
     const shell = document.getElementById('shell');
     const content = document.getElementById('content');
     const title = document.getElementById('title');
-    const state = { profile: null, membership: null, organization: null, counts: { templates: 0, members: 0, assets: 0 } };
+    const state = { profile: null, membership: null, organization: null, templates: [], currentView: 'home', counts: { templates: 0, members: 0, assets: 0 } };
 
     function escapeHtml(value) {
       return String(value ?? '').replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
     }
 
     const views = {
-      home: () => `<p class="muted">Welcome${state.profile?.full_name ? `, ${escapeHtml(state.profile.full_name)}` : ''}. Manage your organization's approved brand assets.</p><div class="grid"><div class="card"><div class="muted">Published Templates</div><div class="metric">${state.counts.templates}</div></div><div class="card"><div class="muted">Team Members</div><div class="metric">${state.counts.members}</div></div><div class="card"><div class="muted">Generated Assets</div><div class="metric">${state.counts.assets}</div></div></div><div class="card" style="margin-top:18px"><h3>Start with your first template</h3><p class="muted">Upload a Canva-exported PDF, define the variable fields once, test it, then publish it for your team.</p><button class="btn" onclick="show('builder')">Create Template</button></div>`,
-      templates: () => `<div class="top"><p class="muted">Approved and draft templates for ${escapeHtml(state.organization.name)}.</p><button class="btn" onclick="show('builder')">+ New Template</button></div><div class="empty"><h3>No templates yet</h3><p class="muted">Your first compiled Vara Template will appear here.</p></div>`,
+      home: () => `<p class="muted">Welcome${state.profile?.full_name ? `, ${escapeHtml(state.profile.full_name)}` : ''}. Manage your organization's approved brand assets.</p><div class="grid"><div class="card"><div class="muted">Published Templates</div><div class="metric">${state.counts.templates}</div></div><div class="card"><div class="muted">Team Members</div><div class="metric">${state.counts.members}</div></div><div class="card"><div class="muted">Generated Assets</div><div class="metric">${state.counts.assets}</div></div></div><div class="card" style="margin-top:18px"><h3>${state.templates.length ? 'Manage your template library' : 'Start with your first template'}</h3><p class="muted">Upload a Canva-exported PDF as a locked master, then configure its approved variable fields.</p><button class="btn" onclick="show('templates')">${state.isAdmin ? 'Upload a Template' : 'View Templates'}</button></div>`,
+      templates: () => `${state.isAdmin ? uploadPanel() : '<div class="notice">Only organization owners and admins can upload master templates. You can view published templates below.</div>'}${templateLibrary()}`,
       builder: () => `<p class="muted">Design → Fields → Permissions → Test → Publish</p><div class="builder"><div class="canvas"><div class="page"><div class="field">{{FULL_NAME}}</div></div></div><div class="inspector"><div class="eyebrow">SELECTED FIELD</div><h3>Full Name</h3><label>Variable</label><input value="FULL_NAME"><label>Data Source</label><select><option>User · Full Name</option></select><label>Font</label><input value="Detected from PDF" disabled><label>Font Size</label><input value="16 pt"><label>Minimum Size</label><input value="12 pt"><label>Alignment</label><select><option>Left</option><option>Center</option><option>Right</option></select><label>Overflow</label><select><option>Shrink to fit</option><option>Wrap</option><option>Reject</option></select><div class="notice"><b>Brand rule:</b> these controls belong to the admin compiler. End users never see or override typography, position, color, alignment or overflow rules.</div><button class="btn" style="width:100%;margin-top:18px">Test Template</button></div></div>`,
       team: () => `<div class="card"><h3>Team</h3><p class="muted">${state.counts.members} organization member${state.counts.members === 1 ? '' : 's'}. Your role is <b>${escapeHtml(state.membership.role)}</b>.</p></div>`,
       brandkit: () => `<div class="card"><h3>Brand Kit</h3><p class="muted">Approved logos, fonts, colors and disclaimers for ${escapeHtml(state.organization.name)}.</p></div>`,
       downloads: () => `<div class="empty"><h3>No generated assets yet</h3><p class="muted">Generated PDF, PNG and JPG assets will be recorded here.</p></div>`
     };
 
+    function uploadPanel() {
+      return `<section class="card upload-panel"><div><div class="eyebrow">NEW TEMPLATE</div><h2>Upload a locked master PDF</h2><p class="muted">The original artwork stays private and unchanged. VaraHQ will add a controlled variable layer after the template is configured.</p><ol class="steps"><li>Export the approved design from Canva as PDF.</li><li>Upload it here to create a private draft.</li><li>Configure fields, permissions, and fitting rules.</li><li>Test before publishing to your team.</li></ol></div><form id="templateUploadForm" class="upload-form"><label for="templateName">Template name</label><input id="templateName" name="templateName" type="text" maxlength="120" placeholder="Business Card" required><label for="templateDescription">Description <span class="muted">(optional)</span></label><textarea id="templateDescription" name="templateDescription" maxlength="500" placeholder="Who should use this template?"></textarea><label class="file-drop" for="templateFile"><b>Choose a Canva-exported PDF</b><span class="muted"><br>PDF only · maximum 25 MB</span><input id="templateFile" name="templateFile" type="file" accept="application/pdf,.pdf" required></label><button id="templateUploadButton" class="btn" type="submit" style="width:100%;margin-top:16px">Upload & Create Draft</button><div id="templateUploadMessage" class="form-message" role="status" aria-live="polite"></div></form></section>`;
+    }
+
+    function templateLibrary() {
+      if (!state.templates.length) return `<div class="empty"><h3>No templates yet</h3><p class="muted">Upload the first approved master PDF to begin.</p></div>`;
+      return `<div class="templates">${state.templates.map(template => `<article class="template"><div class="preview">PDF MASTER</div><div class="body"><div class="template-meta"><strong>${escapeHtml(template.name)}</strong><span class="pill">${escapeHtml(template.status)}</span></div>${template.description ? `<p class="muted">${escapeHtml(template.description)}</p>` : ''}<small class="muted">Version ${template.current_version} · ${new Date(template.updated_at).toLocaleDateString()}</small></div></article>`).join('')}</div>`;
+    }
+
     function show(view) {
+      state.currentView = view;
       document.querySelectorAll('.nav button').forEach(button => button.classList.toggle('active', button.dataset.view === view));
       title.textContent = {home:'Dashboard',templates:'Templates',builder:'Template Builder',team:'Team',brandkit:'Brand Kit',downloads:'Downloads'}[view];
       content.innerHTML = views[view]();
+      document.getElementById('templateUploadForm')?.addEventListener('submit', uploadTemplate);
+    }
+
+    async function loadTemplates() {
+      const { data, error } = await sb.from('templates').select('id,name,description,status,current_version,master_file_path,created_at,updated_at').eq('organization_id', state.organization.id).order('updated_at', {ascending:false});
+      if (error) throw error;
+      state.templates = data || [];
+      state.counts.templates = state.templates.filter(template => template.status === 'published').length;
+    }
+
+    async function uploadTemplate(event) {
+      event.preventDefault();
+      if (!state.isAdmin) return;
+      const form = event.currentTarget;
+      const button = document.getElementById('templateUploadButton');
+      const message = document.getElementById('templateUploadMessage');
+      const file = form.templateFile.files[0];
+      const name = form.templateName.value.trim();
+      const description = form.templateDescription.value.trim();
+      if (!file || !name) return;
+      if (!file.name.toLowerCase().endsWith('.pdf') || (file.type && file.type !== 'application/pdf')) {
+        message.className = 'form-message error'; message.textContent = 'Please choose a PDF file.'; return;
+      }
+      if (file.size > 25 * 1024 * 1024) {
+        message.className = 'form-message error'; message.textContent = 'That PDF is larger than 25 MB.'; return;
+      }
+      button.disabled = true;
+      message.className = 'form-message muted';
+      message.textContent = 'Uploading the private master PDF…';
+      const templateId = crypto.randomUUID();
+      const masterPath = `${state.organization.id}/${templateId}/master.pdf`;
+      try {
+        const { error: uploadError } = await sb.storage.from('template-masters').upload(masterPath, file, {contentType:'application/pdf', cacheControl:'3600', upsert:false});
+        if (uploadError) throw uploadError;
+        const { error: insertError } = await sb.from('templates').insert({id:templateId, organization_id:state.organization.id, name, description:description || null, status:'draft', master_file_path:masterPath, created_by:state.userId});
+        if (insertError) {
+          await sb.storage.from('template-masters').remove([masterPath]);
+          throw insertError;
+        }
+        await loadTemplates();
+        show('templates');
+        const success = document.getElementById('templateUploadMessage');
+        if (success) { success.className = 'form-message success'; success.textContent = `Draft “${name}” was created securely.`; }
+      } catch (error) {
+        message.className = 'form-message error';
+        message.textContent = error.message || 'The template could not be uploaded. Please try again.';
+        button.disabled = false;
+      }
     }
 
     document.querySelectorAll('.nav button').forEach(button => button.addEventListener('click', () => show(button.dataset.view)));
@@ -65,19 +123,21 @@
 
       state.profile = profileResult.data;
       state.membership = membershipResult.data;
+      state.userId = session.user.id;
+      state.isAdmin = ['owner', 'admin'].includes(state.membership.role);
       state.organization = Array.isArray(membershipResult.data.organizations) ? membershipResult.data.organizations[0] : membershipResult.data.organizations;
       if (!state.organization) throw new Error('Your organization could not be loaded.');
 
       const organizationId = state.organization.id;
-      const [templatesResult, membersResult, assetsResult] = await Promise.all([
-        sb.from('templates').select('*', {count:'exact',head:true}).eq('organization_id', organizationId).eq('status', 'published'),
+      const [membersResult, assetsResult] = await Promise.all([
         sb.from('organization_members').select('*', {count:'exact',head:true}).eq('organization_id', organizationId),
         sb.from('generated_assets').select('*', {count:'exact',head:true}).eq('organization_id', organizationId)
       ]);
 
-      const countError = templatesResult.error || membersResult.error || assetsResult.error;
+      const countError = membersResult.error || assetsResult.error;
       if (countError) throw countError;
-      state.counts = {templates: templatesResult.count || 0, members: membersResult.count || 0, assets: assetsResult.count || 0};
+      state.counts = {templates: 0, members: membersResult.count || 0, assets: assetsResult.count || 0};
+      await loadTemplates();
 
       document.getElementById('sidebarOrganization').textContent = state.organization.name;
       document.getElementById('sidebarRole').textContent = state.membership.role;
