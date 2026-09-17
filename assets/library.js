@@ -16,7 +16,8 @@ async function loadLibraryState() {
     sb.from('personal_library_items').select('id,brand_asset_id,template_id,generated_asset_id,created_at').eq('organization_id', state.organization.id).eq('user_id', state.userId).order('created_at', {ascending:false})
   ]);
   if (assetsResult.error || personalResult.error) throw assetsResult.error || personalResult.error;
-  state.brandAssets = assetsResult.data || [];
+  state.allBrandAssets = assetsResult.data || [];
+  state.brandAssets = state.isAdmin ? [...state.allBrandAssets] : state.allBrandAssets.filter(asset => asset.approved);
   state.personalItems = personalResult.data || [];
   await loadSavedGeneratedAssets();
   await applyOrganizationBranding();

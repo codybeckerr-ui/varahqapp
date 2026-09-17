@@ -202,7 +202,9 @@ const originalShow=show;
 show=function(view){originalShow(view);if(view==='downloads')loadDownloads();if(view==='builder')updateWorkflowButtons();};
 async function loadDownloads(){
  const target=document.getElementById('downloadList');
- const {data,error}=await sb.from('generated_assets').select('id,file_path,output_format,created_at,templates(name)').eq('organization_id',state.organization.id).order('created_at',{ascending:false}).limit(50);
+ let query=sb.from('generated_assets').select('id,file_path,output_format,created_at,templates(name)').eq('organization_id',state.organization.id).order('created_at',{ascending:false}).limit(50);
+ if(!state.isAdmin)query=query.eq('user_id',state.userId);
+ const {data,error}=await query;
  if(!target?.isConnected)return;if(error){target.textContent=error.message;return;}
  target.innerHTML=data.length?data.map(a=>`<div class="download-row"><span>${html(a.templates?.name||'Template')} · ${html(a.output_format.toUpperCase())} · ${new Date(a.created_at).toLocaleString()}</span><span class="row-actions"><button class="btn outline" data-download-id="${a.id}">Download</button>${libraryToggleButton('generated_asset',a.id)}</span></div>`).join(''):'No generated files yet. Open a published template to create one.';
  target.onclick=async event=>{const id=event.target.dataset.downloadId;if(!id)return;const asset=data.find(a=>a.id===id);const {data:link,error}=await sb.storage.from('generated-assets').createSignedUrl(asset.file_path,300,{download:true});if(error){event.target.textContent=error.message;return;}const a=document.createElement('a');a.href=link.signedUrl;a.target='_blank';a.rel='noopener';a.click();};
