@@ -1,31 +1,38 @@
-# VaraHQ
+# VaraHQ — Brand Assets. Simplified.
 
-**Brand Assets. Simplified.**
+The existing homepage, signup and organization workspace are preserved. Application source lives in this active `varahqapp` checkout.
 
-VaraHQ is a brand asset automation and brand compliance platform for distributed teams.
+## Template workflow
 
-## Product flow
+1. Upload a Canva PDF in Templates; the original is private and immutable once referenced.
+2. Open **Configure & Publish**. Detected text placeholders become configurable fields. A missing closing brace is reported and can still be detected.
+3. Choose approved full fonts, bounds, fitting rules, data sources, required fields and member editing permissions. Drag a box to move it or its corner to resize. Upload licensed TTF/OTF files when a required font is unavailable.
+4. **Save & Test Template** runs the Python compiler and renders a personalized preview. Five name stress tests report content that fits or is safely rejected.
+5. **Publish Template** becomes available only after a successful test of the current saved revision.
+6. Members select **Personalize**, preview their approved content and generate PDF, PNG or JPG. Saved files appear in Downloads.
 
-Design anywhere → Upload master → Configure approved variables → Test → Publish → Personalize → Generate.
+The master must contain selectable horizontal text placeholders, such as `{{FULL_NAME}}`. This version supports text variables, up to ten unrotated pages and 40 fields. PNG/JPG exports and the visual canvas currently show one page; use PDF for multi-page outputs. Pattern/gradient text requires an explicit administrator-approved solid color or a revised master. Missing full fonts block testing; embedded font subsets are never used as a fallback. Open Sans full fonts are bundled under their included OFL license. Nourd is not bundled.
 
-## Production baseline
+## Server boundaries
 
-- Brand colors: Deep Green `#0F2D24`, Sage `#7A9B87`, Charcoal `#1F1F1F`, Stone `#E8E7E1`, White `#FFFFFF`
-- Frontend direction: Next.js / React
-- Auth + database: Supabase
-- Rendering direction: Python / FastAPI
-- Master artwork remains locked; variable rules are configured by admins and hidden from end users.
-- Template fidelity rules include font, size, color, bounds, alignment, minimum font size, shrink-to-fit and overflow behavior.
+- `api/template.py`: Vercel Python/FastAPI API. Validates the Supabase user token; reads tenant-scoped source and configuration with that token. It has no service-role key. Uses `renderer/engine.py` for detection, compilation, fitting and PDF/image rendering.
+- `supabase/functions/template-workflow/index.ts`: authenticated gateway. Verifies the user and database membership; calls the fixed renderer URL; persists successful compilations, publishing state and generated outputs using its server-only credential.
+- Publishing is restricted to server RPCs. Field mutations increment the revision and invalidate test eligibility. Published fields cannot be modified until returned to Draft.
+- Member generation accepts only template identity, output format and allowed values. Profile values and design rules are resolved on the server.
+- Compiled artifacts and downloaded assets use private storage and RLS. Download links expire after five minutes.
 
-## Current application slice
+## Development and verification
 
-- `index.html` preserves the approved VaraHQ marketing and email/password sign-in direction.
-- `signup.html` creates an Auth account and passes onboarding details to the database-controlled signup transaction.
-- `app.html` protects the workspace and loads the signed-in user's profile, organization, role, and dashboard counts from Supabase.
-- `supabase/migrations/` contains the reviewed database changes for secure organization onboarding and tenant-aware access.
+Python 3.12, dependencies in `requirements.txt` / `requirements-lock.txt`.
 
-The first person signing up for a new organization is assigned `owner` by the database trigger. Browser-supplied roles are never accepted. The existing Test Company is reserved for `Codybeckerr@gmail.com` so Cody's signup attaches to that record rather than creating a duplicate.
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m unittest discover -s tests -v
+```
 
-## Next
+The Vercel project uses its existing static pages plus `/api/template`. Deploy with local Git to `main`; deploy Supabase migrations and the tracked Edge Function separately. The gateway renderer URL is fixed to `https://varahqapp.vercel.app/api/template`.
 
-Verify the account-confirmation and authenticated organization flow in production, add the canonical logo asset when supplied, then build Templates → Template Builder → Generator and migrate deliberately to Next.js.
+For browser QA, use the signed-in workspace. A local `file:` page can call the hosted renderer using its bearer token, but the hosted app is the normal entry point. No passwords or service keys belong in this repository.
+
+Renderer tests cover five names, unchanged artwork outside variable areas, missing full fonts, unsupported glyphs, overflow, required fields, geometry, protected values and PDF/PNG/JPG output. Local render timings exclude network/auth/storage and do not represent deployed end-to-end latency.

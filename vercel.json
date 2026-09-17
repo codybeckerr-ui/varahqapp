@@ -1,0 +1,10 @@
+{
+  "framework": null,
+  "functions": {
+    "api/template.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{.venv/**,tests/**,tmp/**,output/**,.git/**,supabase/**}"
+    }
+  },
+  "headers": [{"source":"/api/(.*)","headers":[{"key":"Cache-Control","value":"private, no-store"}]}]
+}
