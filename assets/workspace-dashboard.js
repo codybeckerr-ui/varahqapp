@@ -282,7 +282,7 @@ applyRoleView = function() {
   nav.clients.hidden = !partnerAdmin;
   nav.home.textContent = partnerAdmin ? 'Agency Dashboard' : 'Dashboard';
   nav.team.textContent = partnerAdmin ? 'Agency Team' : 'Team';
-  nav.settings.textContent = partnerAdmin ? 'Partner Settings' : 'Settings';
+  nav.settings.textContent = partnerAdmin ? 'Agency Settings' : 'Settings';
   nav.mylibrary.hidden = partnerAdmin;
   nav.downloads.hidden = partnerAdmin;
   nav.approvals.hidden = !partnerAdmin;
@@ -319,7 +319,7 @@ show = function(view) {
   dashboardShow(view);
   if (partnerAdmin && view === 'home') title.textContent = 'Agency Dashboard';
   if (partnerAdmin && view === 'team') title.textContent = 'Agency Team';
-  if (partnerAdmin && view === 'settings') title.textContent = 'Partner Settings';
+  if (partnerAdmin && view === 'settings') title.textContent = 'Agency Settings';
   if (partnerAdmin && view === 'approvals') title.textContent = 'Approvals';
   if (partnerAdmin && view === 'reports') title.textContent = 'Reports';
   if (partnerAdmin && view === 'storage') title.textContent = 'Storage';
