@@ -1,4 +1,4 @@
-const agencyWorkspace = { clients: [], loading: false, showCreateClient: false, busy: false };
+const agencyWorkspace = { clients: [], loading: false, showCreateClient: false, busy: false, query: '', members: [], templates: [], generatedAssets: [], brandAssets: [] };
 
 function organizationAdminDashboard() {
   const name = state.profile?.full_name?.trim().split(/\s+/)[0] || 'there';
@@ -34,11 +34,23 @@ async function loadAgencyData() {
   agencyWorkspace.loading = false;
   if (error) throw error;
   const relationships = data || [];
-  if (!relationships.length) { agencyWorkspace.clients = []; return; }
+  if (!relationships.length) { agencyWorkspace.clients = []; agencyWorkspace.members = []; agencyWorkspace.templates = []; agencyWorkspace.generatedAssets = []; agencyWorkspace.brandAssets = []; return; }
   const { data: grants, error: grantError } = await sb.from('organization_access_grants').select('relationship_id,can_view,can_manage_templates,can_manage_brand,can_manage_members,can_manage_settings,can_review_approvals').eq('user_id', state.userId).in('relationship_id', relationships.map(relationship => relationship.id));
   if (grantError) throw grantError;
   const grantsByRelationship = new Map((grants || []).map(grant => [grant.relationship_id, grant]));
   agencyWorkspace.clients = relationships.map(relationship => ({...relationship, access:grantsByRelationship.get(relationship.id) || null}));
+  const clientIds = agencyWorkspace.clients.filter(relationship => relationship.status === 'active' && relationship.access?.can_view).map(relationship => relationship.client_organization_id);
+  if (!clientIds.length) { agencyWorkspace.members = []; agencyWorkspace.templates = []; agencyWorkspace.generatedAssets = []; agencyWorkspace.brandAssets = []; return; }
+  const [membersResult, templatesResult, generatedResult, brandResult] = await Promise.all([
+    sb.from('organization_members').select('organization_id,user_id,role,created_at').in('organization_id', clientIds),
+    sb.from('templates').select('id,organization_id,name,status,library_category,updated_at').in('organization_id', clientIds),
+    sb.from('generated_assets').select('id,organization_id,template_id,output_format,created_at').in('organization_id', clientIds).order('created_at', {ascending:false}).limit(500),
+    sb.from('brand_assets').select('id,organization_id,size_bytes,category,created_at').in('organization_id', clientIds)
+  ]);
+  agencyWorkspace.members = membersResult.data || [];
+  agencyWorkspace.templates = templatesResult.data || [];
+  agencyWorkspace.generatedAssets = generatedResult.data || [];
+  agencyWorkspace.brandAssets = brandResult.data || [];
 }
 
 function agencyClientRow(relationship) {
@@ -48,13 +60,101 @@ function agencyClientRow(relationship) {
   return `<article class="agency-client-card"><span class="client-mark">${html(initial)}</span><div><strong>${html(client?.name || 'Client organization')}</strong><small>${html(client?.industry || 'Industry not set')}${client?.website?` · ${html(client.website)}`:''}</small></div><span class="status-dot ${relationship.status === 'active' ? '' : 'paused'}">${html(relationship.status)}</span><button class="btn outline" type="button" data-client-details="${relationship.id}" ${available?'':'disabled'}>${available?'Manage client':'Access not assigned'}</button></article>`;
 }
 
-function agencyDashboardView() {
-  const firstName = state.profile?.full_name?.trim().split(/\s+/)[0] || 'there';
-  const activeClients = agencyWorkspace.clients.filter(client => client.status === 'active');
-  return `<section class="dashboard-heading"><div><div class="agency-badge">PARTNER WORKSPACE</div><h2>Welcome back, ${html(firstName)}.</h2><p class="muted">Manage client accounts and your agency’s own templates, assets, and team.</p></div><button class="btn" type="button" data-open-add-client>+ Add Client</button></section>
-    <section class="dashboard-metrics"><article class="dashboard-metric"><span class="dashboard-metric-icon">C</span><div><strong>${agencyWorkspace.clients.length}</strong><span>Total clients</span></div></article><article class="dashboard-metric"><span class="dashboard-metric-icon">U</span><div><strong>${state.counts.members}</strong><span>Agency team members</span></div></article><article class="dashboard-metric"><span class="dashboard-metric-icon">T</span><div><strong>${state.counts.templates}</strong><span>Agency-owned templates</span></div></article><article class="dashboard-metric"><span class="dashboard-metric-icon">A</span><div><strong>${state.organizationAssetCount}</strong><span>Agency files generated</span></div></article></section>
-    <section class="agency-dashboard-grid"><article class="dashboard-panel"><div class="dashboard-panel-heading"><h3>Clients</h3><button type="button" onclick="show('clients')">View all →</button></div>${activeClients.length?`<div class="agency-client-list">${activeClients.slice(0,6).map(agencyClientRow).join('')}</div>`:`<div class="agency-empty"><h3>Add your first client</h3><p class="muted">Create an independent client workspace, then assign exactly which agency users may manage it.</p><button class="btn" type="button" data-open-add-client>Add a Client</button></div>`}</article><aside class="agency-summary"><article class="agency-summary-item"><strong>${activeClients.length}</strong><span>Active client workspaces</span></article><article class="agency-summary-item"><strong>${agencyWorkspace.clients.filter(client=>client.status==='paused').length}</strong><span>Paused relationships</span></article><article class="dashboard-panel"><h3>Partner controls</h3><p class="muted">Client data stays owned by each client organization. Access is granted per agency user and can be removed without moving client files.</p><button class="btn outline" onclick="show('team')">Manage Agency Team</button></article></aside></section>`;
+function agencyFormatBytes(bytes) {
+  if (!bytes) return '0 B';
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
 }
+
+function agencyClientStats(relationship) {
+  const id = relationship.client_organization_id;
+  const templates = agencyWorkspace.templates.filter(item => item.organization_id === id);
+  const generated = agencyWorkspace.generatedAssets.filter(item => item.organization_id === id);
+  const brand = agencyWorkspace.brandAssets.filter(item => item.organization_id === id);
+  return { users:agencyWorkspace.members.filter(item => item.organization_id === id).length, templates:templates.length, pending:templates.filter(item => item.status === 'testing').length, generated:generated.length, storage:brand.reduce((sum,item)=>sum + Number(item.size_bytes || 0),0) };
+}
+
+function agencyMetric(icon, value, label, note = '') {
+  return `<article class="agency-kpi"><span class="agency-kpi-icon">${icon}</span><div><strong>${html(value)}</strong><span>${html(label)}</span>${note?`<small>${html(note)}</small>`:''}</div></article>`;
+}
+
+function agencyMonthlyChart() {
+  const now = new Date();
+  const months = Array.from({length:9}, (_,offset) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - 8 + offset, 1);
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    return {key,label:date.toLocaleDateString(undefined,{month:'short'}),count:0};
+  });
+  const byKey = new Map(months.map(month => [month.key, month]));
+  agencyWorkspace.generatedAssets.forEach(asset => { const date = new Date(asset.created_at); const month = byKey.get(`${date.getFullYear()}-${date.getMonth()}`); if (month) month.count += 1; });
+  const max = Math.max(1, ...months.map(month => month.count));
+  return `<div class="agency-bars">${months.map(month=>`<div class="agency-bar-column"><div class="agency-bar-value">${month.count || ''}</div><div class="agency-bar-track"><i style="height:${month.count ? Math.max(8, month.count / max * 100) : 3}%"></i></div><span>${month.label}</span></div>`).join('')}</div>`;
+}
+
+function agencyAssetTypes() {
+  const counts = {pdf:0,png:0,jpg:0};
+  agencyWorkspace.generatedAssets.forEach(asset => { if (counts[asset.output_format] !== undefined) counts[asset.output_format] += 1; });
+  const total = counts.pdf + counts.png + counts.jpg;
+  const pdf = total ? counts.pdf / total * 100 : 0;
+  const png = total ? counts.png / total * 100 : 0;
+  const background = total ? `conic-gradient(#0f4a38 0 ${pdf}%,#3f8f6e ${pdf}% ${pdf+png}%,#8bc3a7 ${pdf+png}% 100%)` : 'conic-gradient(#e5ebe8 0 100%)';
+  return `<div class="agency-type-layout"><div class="agency-donut" style="background:${background}"><span><strong>${total}</strong><small>Total</small></span></div><div class="agency-legend"><div><i class="pdf"></i><span>PDF</span><strong>${counts.pdf}</strong></div><div><i class="png"></i><span>PNG</span><strong>${counts.png}</strong></div><div><i class="jpg"></i><span>JPG</span><strong>${counts.jpg}</strong></div></div></div>`;
+}
+
+function agencyClientTableRow(relationship) {
+  const client = agencyClientOrganization(relationship);
+  const stats = agencyClientStats(relationship);
+  const available = relationship.status === 'active' && relationship.access?.can_view;
+  return `<tr><td><span class="client-table-name"><i>${html((client?.name || 'C').slice(0,1).toUpperCase())}</i><strong>${html(client?.name || 'Client organization')}</strong></span></td><td>${html(client?.industry || 'Not set')}</td><td>${stats.users}</td><td>${stats.templates}</td><td><span class="pending-count ${stats.pending?'has-pending':''}">${stats.pending}</span></td><td>${agencyFormatBytes(stats.storage)}</td><td><span class="client-status ${relationship.status}">${html(relationship.status)}</span></td><td><button class="client-menu" type="button" data-client-details="${relationship.id}" ${available?'':'disabled'} aria-label="Manage ${html(client?.name || 'client')}">•••</button></td></tr>`;
+}
+
+function agencyRecentActivity() {
+  const clients = new Map(agencyWorkspace.clients.map(relationship => [relationship.client_organization_id, agencyClientOrganization(relationship)?.name || 'Client']));
+  const activities = [
+    ...agencyWorkspace.generatedAssets.map(asset => ({date:asset.created_at,icon:'↧',title:'Asset generated',detail:`${String(asset.output_format).toUpperCase()} · ${clients.get(asset.organization_id) || 'Client'}`})),
+    ...agencyWorkspace.templates.map(template => ({date:template.updated_at,icon:template.status === 'published'?'✓':'T',title:template.status === 'published'?'Template published':'Template updated',detail:`${template.name} · ${clients.get(template.organization_id) || 'Client'}`})),
+    ...agencyWorkspace.clients.map(relationship => ({date:relationship.created_at,icon:'+',title:'Client added',detail:clients.get(relationship.client_organization_id) || 'Client'}))
+  ].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,7);
+  if (!activities.length) return '<div class="agency-activity-empty">Client activity will appear here.</div>';
+  return `<div class="agency-activity-list">${activities.map(item=>`<div><i>${item.icon}</i><span><strong>${html(item.title)}</strong><small>${html(item.detail)}</small><time>${new Date(item.date).toLocaleDateString()}</time></span></div>`).join('')}</div>`;
+}
+
+function agencyDashboardView() {
+  const activeClients = agencyWorkspace.clients.filter(client => client.status === 'active');
+  const filteredClients = agencyWorkspace.clients.filter(relationship => { const client = agencyClientOrganization(relationship); return !agencyWorkspace.query || `${client?.name || ''} ${client?.industry || ''}`.toLowerCase().includes(agencyWorkspace.query.toLowerCase()); });
+  const pending = agencyWorkspace.templates.filter(template => template.status === 'testing').length;
+  const storage = agencyWorkspace.brandAssets.reduce((sum,asset)=>sum + Number(asset.size_bytes || 0),0);
+  const totalUsers = agencyWorkspace.members.length;
+  const clientPerformance = activeClients.map(relationship => ({relationship,count:agencyClientStats(relationship).generated})).sort((a,b)=>b.count-a.count).slice(0,5);
+  const maxClientAssets = Math.max(1,...clientPerformance.map(item=>item.count));
+  return `<section class="agency-page-heading"><div><h2>Agency Dashboard</h2><p>Manage all your clients, assets, templates and approvals in one place.</p></div><button class="btn agency-add-client" type="button" data-open-add-client>＋ Add Client</button></section>
+    <section class="agency-kpi-grid">${agencyMetric('▣',agencyWorkspace.clients.length,'Total Clients',activeClients.length ? `${activeClients.length} active` : 'Add your first client')}${agencyMetric('♟',totalUsers,'Total Client Users',totalUsers ? 'Across managed accounts' : 'No client users yet')}${agencyMetric('✓',pending,'Pending Approvals',pending ? 'Templates awaiting review' : 'Nothing waiting')}${agencyMetric('▧',agencyWorkspace.generatedAssets.length,'Assets Generated','Across client accounts')}${agencyMetric('◉',agencyFormatBytes(storage),'Storage Used',`${agencyWorkspace.brandAssets.length} tracked files`)}</section>
+    <section class="agency-analytics-grid"><article class="agency-card agency-chart-card"><div class="agency-card-heading"><h3>Client Overview</h3><span>Assets Generated</span></div>${agencyMonthlyChart()}</article><article class="agency-card"><div class="agency-card-heading"><h3>Asset Types</h3><span>This month</span></div>${agencyAssetTypes()}</article></section>
+    <section class="agency-work-grid"><article class="agency-card agency-clients-card"><div class="agency-card-heading agency-table-heading"><h3>Clients</h3><label><span>⌕</span><input type="search" data-agency-client-search value="${html(agencyWorkspace.query)}" placeholder="Search clients…"></label></div><div class="agency-table-wrap"><table class="agency-client-table"><thead><tr><th>Client</th><th>Industry</th><th>Users</th><th>Templates</th><th>Pending</th><th>Storage</th><th>Status</th><th>Actions</th></tr></thead><tbody>${filteredClients.length?filteredClients.map(agencyClientTableRow).join(''):`<tr><td colspan="8"><div class="agency-table-empty"><strong>No clients yet</strong><span>Add your first client to begin managing their team, templates, and brand.</span><button class="btn" type="button" data-open-add-client>Add Client</button></div></td></tr>`}</tbody></table></div><div class="agency-table-footer"><span>Showing ${filteredClients.length} of ${agencyWorkspace.clients.length} clients</span></div></article><aside class="agency-card agency-activity-card"><div class="agency-card-heading"><h3>Recent Activity</h3><span>Latest</span></div>${agencyRecentActivity()}</aside></section>
+    <section class="agency-bottom-grid"><article class="agency-card"><h3>Storage Usage</h3><strong class="agency-storage-total">${agencyFormatBytes(storage)}</strong><span class="muted"> across client brand libraries</span><div class="agency-storage-line"><i style="width:${storage?100:0}%"></i></div><div class="agency-storage-key"><span>Brand files tracked</span><strong>${agencyWorkspace.brandAssets.length}</strong></div></article><article class="agency-card"><h3>Top Clients by Asset Generation</h3>${clientPerformance.length?`<div class="agency-performance">${clientPerformance.map(item=>`<div><span>${html(agencyClientOrganization(item.relationship)?.name || 'Client')}</span><i><b style="width:${item.count/maxClientAssets*100}%"></b></i><strong>${item.count}</strong></div>`).join('')}</div>`:'<p class="muted">Client generation totals will appear here.</p>'}</article><article class="agency-growth-card"><small>PARTNER PROGRAM</small><h3>Help Your Clients<br>Grow Their Brands</h3><p>Deliver professional brand portals while keeping every client workspace separate and secure.</p><button class="btn" type="button" data-open-add-client>Add a New Client →</button></article></section>`;
+}
+
+function agencyApprovalsView() {
+  const pending = agencyWorkspace.templates.filter(template => template.status === 'testing');
+  const clients = new Map(agencyWorkspace.clients.map(relationship => [relationship.client_organization_id, agencyClientOrganization(relationship)?.name || 'Client']));
+  return `<section class="agency-page-heading"><div><h2>Approvals</h2><p>Review client templates that have completed testing and are waiting to be published.</p></div></section><article class="agency-card">${pending.length?`<div class="agency-approval-list">${pending.map(template=>`<div><span><strong>${html(template.name)}</strong><small>${html(clients.get(template.organization_id) || 'Client organization')}</small></span><button class="btn outline" type="button" data-open-agency-template="${template.organization_id}" data-template-id="${template.id}">Open Client</button></div>`).join('')}</div>`:'<div class="agency-table-empty"><strong>No pending approvals</strong><span>Templates in testing will appear here.</span></div>'}</article>`;
+}
+
+function agencyReportsView() {
+  return `<section class="agency-page-heading"><div><h2>Reports</h2><p>Track asset generation across the client organizations you manage.</p></div></section><section class="agency-analytics-grid"><article class="agency-card agency-chart-card"><div class="agency-card-heading"><h3>Client Overview</h3><span>Assets Generated</span></div>${agencyMonthlyChart()}</article><article class="agency-card"><div class="agency-card-heading"><h3>Asset Types</h3><span>All tracked files</span></div>${agencyAssetTypes()}</article></section>`;
+}
+
+function agencyStorageView() {
+  const storage = agencyWorkspace.brandAssets.reduce((sum,asset)=>sum + Number(asset.size_bytes || 0),0);
+  const byType = new Map();
+  agencyWorkspace.brandAssets.forEach(asset => byType.set(asset.category, (byType.get(asset.category) || 0) + Number(asset.size_bytes || 0)));
+  return `<section class="agency-page-heading"><div><h2>Storage</h2><p>Storage currently tracked across accessible client brand libraries.</p></div></section><section class="agency-kpi-grid storage-kpis">${agencyMetric('◉',agencyFormatBytes(storage),'Tracked Storage')}${agencyMetric('▧',agencyWorkspace.brandAssets.length,'Brand Files')}${agencyMetric('C',agencyWorkspace.clients.filter(client=>client.access?.can_view).length,'Accessible Clients')}</section><article class="agency-card"><div class="agency-card-heading"><h3>Storage by File Type</h3><span>Brand Library</span></div>${byType.size?`<div class="agency-storage-breakdown">${[...byType.entries()].sort((a,b)=>b[1]-a[1]).map(([type,size])=>`<div><span>${html(type)}</span><strong>${agencyFormatBytes(size)}</strong></div>`).join('')}</div>`:'<div class="agency-table-empty"><strong>No client files yet</strong><span>Uploaded brand files will be included here.</span></div>'}</article>`;
+}
+
+views.approvals = agencyApprovalsView;
+views.reports = agencyReportsView;
+views.storage = agencyStorageView;
 
 function clientCreateForm() {
   return `<div class="client-create-layout"><form id="agencyClientForm" class="card settings-form"><div class="eyebrow">NEW CLIENT WORKSPACE</div><h2>Create an independent client</h2><p class="muted">This creates the organization and connects it to ${html(state.organization.name)}. Client ownership remains separate.</p><label for="clientName">Organization name</label><input id="clientName" name="name" maxlength="120" required placeholder="Smith Realty Group"><label for="clientWebsite">Website <span class="muted">(optional)</span></label><input id="clientWebsite" name="website" type="url" maxlength="255" placeholder="https://example.com"><label for="clientIndustry">Industry <span class="muted">(optional)</span></label><input id="clientIndustry" name="industry" maxlength="80" placeholder="Healthcare, franchise, real estate…"><button class="btn" type="submit">Create Client Workspace</button><button class="btn outline" type="button" data-cancel-add-client>Cancel</button><div id="agencyClientMessage" class="form-message" role="status" aria-live="polite"></div></form><aside class="card client-create-note"><div class="eyebrow">HOW ACCESS WORKS</div><h3>The client stays independent</h3><p>VaraHQ creates a separate organization for the client. Your agency receives a scoped management relationship; the client’s templates, files, users, and branding remain attached to that client account.</p></aside></div>`;
@@ -62,7 +162,8 @@ function clientCreateForm() {
 
 function clientsView() {
   if (agencyWorkspace.showCreateClient) return clientCreateForm();
-  return `<section class="client-page-header"><div><div class="eyebrow">PARTNER MANAGEMENT</div><h2>Clients</h2><p class="muted">Organizations managed by ${html(state.organization.name)}.</p></div><button class="btn" type="button" data-open-add-client>+ Add Client</button></section>${agencyWorkspace.loading?'<div class="card"><p>Loading clients…</p></div>':agencyWorkspace.clients.length?`<div class="agency-client-list">${agencyWorkspace.clients.map(agencyClientRow).join('')}</div>`:`<div class="agency-empty"><h3>No clients yet</h3><p class="muted">Add the first independent organization your agency will manage in VaraHQ.</p><button class="btn" type="button" data-open-add-client>Add Your First Client</button></div>`}`;
+  const filtered = agencyWorkspace.clients.filter(relationship => { const client = agencyClientOrganization(relationship); return !agencyWorkspace.query || `${client?.name || ''} ${client?.industry || ''}`.toLowerCase().includes(agencyWorkspace.query.toLowerCase()); });
+  return `<section class="agency-page-heading"><div><h2>Clients</h2><p>Manage the organizations connected to ${html(state.organization.name)}.</p></div><button class="btn agency-add-client" type="button" data-open-add-client>＋ Add Client</button></section>${agencyWorkspace.loading?'<div class="agency-card"><p>Loading clients…</p></div>':`<article class="agency-card agency-clients-card"><div class="agency-card-heading agency-table-heading"><h3>Client Accounts</h3><label><span>⌕</span><input type="search" data-agency-client-search value="${html(agencyWorkspace.query)}" placeholder="Search clients…"></label></div><div class="agency-table-wrap"><table class="agency-client-table"><thead><tr><th>Client</th><th>Industry</th><th>Users</th><th>Templates</th><th>Pending</th><th>Storage</th><th>Status</th><th>Actions</th></tr></thead><tbody>${filtered.length?filtered.map(agencyClientTableRow).join(''):`<tr><td colspan="8"><div class="agency-table-empty"><strong>No clients yet</strong><span>Add the first independent organization your agency will manage in VaraHQ.</span><button class="btn" type="button" data-open-add-client>Add Your First Client</button></div></td></tr>`}</tbody></table></div><div class="agency-table-footer"><span>Showing ${filtered.length} of ${agencyWorkspace.clients.length} clients</span></div></article>`}`;
 }
 
 function managedClientDashboard() {
@@ -159,6 +260,9 @@ applyRoleView = function() {
     nav.brandkit.hidden = !access.can_manage_brand;
     nav.mylibrary.hidden = true;
     nav.downloads.hidden = false;
+    nav.approvals.hidden = true;
+    nav.reports.hidden = true;
+    nav.storage.hidden = true;
     nav.team.textContent = 'Client Team';
     nav.settings.textContent = 'Client Settings';
     document.querySelector('.side').classList.remove('agency-side');
@@ -166,6 +270,8 @@ applyRoleView = function() {
     document.getElementById('rolePreviewToggle').classList.add('hidden');
     document.getElementById('previewNotice').classList.add('hidden');
     document.getElementById('managedClientNotice').classList.remove('hidden');
+    document.body.classList.remove('agency-mode');
+    document.getElementById('agencyTopbar').classList.add('hidden');
     return;
   }
   const partnerAdmin = state.organization?.organization_type === 'partner' && state.isAdmin;
@@ -176,8 +282,20 @@ applyRoleView = function() {
   nav.settings.textContent = partnerAdmin ? 'Partner Settings' : 'Settings';
   nav.mylibrary.hidden = partnerAdmin;
   nav.downloads.hidden = partnerAdmin;
+  nav.approvals.hidden = !partnerAdmin;
+  nav.reports.hidden = !partnerAdmin;
+  nav.storage.hidden = !partnerAdmin;
   document.querySelector('.side').classList.toggle('agency-side', partnerAdmin);
-  if (partnerAdmin) document.getElementById('sidebarRole').textContent = state.membership?.role === 'owner' ? 'Agency Owner' : 'Agency Admin';
+  document.body.classList.toggle('agency-mode', partnerAdmin);
+  document.getElementById('agencyTopbar').classList.toggle('hidden', !partnerAdmin);
+  if (partnerAdmin) {
+    document.getElementById('sidebarRole').textContent = state.membership?.role === 'owner' ? 'Agency Owner' : 'Agency Admin';
+    const name = state.profile?.full_name || state.profile?.email || 'Agency Admin';
+    document.getElementById('agencyAvatar').textContent = name.split(/\s+/).map(part=>part[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('agencyUserName').textContent = name;
+    document.getElementById('agencyOrganizationName').textContent = state.organization.name;
+    document.getElementById('agencyGlobalSearch').value = agencyWorkspace.query;
+  }
 };
 
 const dashboardShow = show;
@@ -194,10 +312,14 @@ show = function(view) {
   }
   const partnerAdmin = state.organization?.organization_type === 'partner' && state.isAdmin;
   if (view === 'clients' && !partnerAdmin) view = 'home';
+  if (['approvals','reports','storage'].includes(view) && !partnerAdmin) view = 'home';
   dashboardShow(view);
   if (partnerAdmin && view === 'home') title.textContent = 'Agency Dashboard';
   if (partnerAdmin && view === 'team') title.textContent = 'Agency Team';
   if (partnerAdmin && view === 'settings') title.textContent = 'Partner Settings';
+  if (partnerAdmin && view === 'approvals') title.textContent = 'Approvals';
+  if (partnerAdmin && view === 'reports') title.textContent = 'Reports';
+  if (partnerAdmin && view === 'storage') title.textContent = 'Storage';
 };
 
 async function createAgencyClient(form) {
@@ -226,6 +348,15 @@ content.addEventListener('click', async event => {
   if (event.target.closest('[data-open-add-client]')) { agencyWorkspace.showCreateClient = true; show('clients'); return; }
   if (event.target.closest('[data-cancel-add-client]')) { agencyWorkspace.showCreateClient = false; show('clients'); return; }
   if (event.target.closest('[data-return-to-agency]')) { await returnToAgencyWorkspace(); return; }
+  const approvalTemplate = event.target.closest('[data-open-agency-template]');
+  if (approvalTemplate) {
+    const relationship = agencyWorkspace.clients.find(item => item.client_organization_id === approvalTemplate.dataset.openAgencyTemplate);
+    if (!relationship) return;
+    content.innerHTML = '<div class="card"><p class="muted">Opening the client template…</p></div>';
+    try { await activateManagedClient(relationship); await openTemplate(approvalTemplate.dataset.templateId); }
+    catch (error) { await returnToAgencyWorkspace().catch(() => {}); content.insertAdjacentHTML('afterbegin', `<div class="notice error">${html(error.message || 'The template could not be opened.')}</div>`); }
+    return;
+  }
   const details = event.target.closest('[data-client-details]');
   if (details) {
     const relationship = agencyWorkspace.clients.find(item => item.id === details.dataset.clientDetails);
@@ -238,6 +369,21 @@ content.addEventListener('click', async event => {
       content.insertAdjacentHTML('afterbegin', `<div class="notice error">${html(message)}</div>`);
     }
   }
+});
+
+let agencySearchTimer;
+document.getElementById('agencyGlobalSearch').addEventListener('input', event => {
+  clearTimeout(agencySearchTimer);
+  const value = event.target.value;
+  agencySearchTimer = setTimeout(() => { agencyWorkspace.query = value; show('home'); document.getElementById('agencyGlobalSearch').focus(); }, 160);
+});
+
+content.addEventListener('input', event => {
+  if (!event.target.matches('[data-agency-client-search]')) return;
+  clearTimeout(agencySearchTimer);
+  const value = event.target.value;
+  const view = state.currentView === 'clients' ? 'clients' : 'home';
+  agencySearchTimer = setTimeout(() => { agencyWorkspace.query = value; show(view); document.querySelector('[data-agency-client-search]')?.focus(); }, 160);
 });
 
 document.getElementById('exitManagedClient').addEventListener('click', () => returnToAgencyWorkspace().catch(error => {
