@@ -36,6 +36,17 @@ class Backend:
         if len(r.content)>25*1024*1024: raise TemplateError('File is too large.')
         return r.content
 
+def organization_access(db, organization_id, user_id):
+    memberships=db.rows('organization_members',organization_id='eq.'+organization_id,user_id='eq.'+user_id)
+    if memberships:
+        return {'view':True,'manage_templates':memberships[0]['role'] in ('owner','admin')}
+    relationships=db.rows('organization_relationships',client_organization_id='eq.'+organization_id,status='eq.active',select='id')
+    for relationship in relationships:
+        grants=db.rows('organization_access_grants',relationship_id='eq.'+relationship['id'],user_id='eq.'+user_id,select='can_view,can_manage_templates')
+        if grants and grants[0].get('can_view'):
+            return {'view':True,'manage_templates':bool(grants[0].get('can_manage_templates'))}
+    return {'view':False,'manage_templates':False}
+
 @app.get('/api/template')
 def health(): return {'service':'VaraHQ template renderer','version':2}
 
@@ -52,24 +63,24 @@ async def endpoint(request:Request):
         action=body.get('action')
         if action=='font_catalog':
             organization_id=str(uuid.UUID(body['organization_id']))
-            memberships=db.rows('organization_members',organization_id='eq.'+organization_id,user_id='eq.'+user['id'])
-            if not memberships or memberships[0]['role'] not in ('owner','admin'): raise PermissionError('Administrator access required.')
+            access=organization_access(db,organization_id,user['id'])
+            if not access['manage_templates']: raise PermissionError('Template management access required.')
             return {'fonts':list_fonts(body.get('query',''),body.get('limit',80))}
         if action=='font_check':
             data=unb64(body.get('font',''))
             if len(data)>5*1024*1024: raise TemplateError('Font files must be at most 5 MB.')
-            memberships=db.rows('organization_members',organization_id='eq.'+str(uuid.UUID(body['organization_id'])),user_id='eq.'+user['id'])
-            if not memberships or memberships[0]['role'] not in ('owner','admin'): raise PermissionError('Administrator access required.')
+            access=organization_access(db,str(uuid.UUID(body['organization_id'])),user['id'])
+            if not access['manage_templates']: raise PermissionError('Template management access required.')
             return {'name':validate_font(data)}
         template_id=str(uuid.UUID(body['template_id']))
         rows=db.rows('templates',id='eq.'+template_id)
         if not rows: raise PermissionError('Template not found or access denied.')
         template=rows[0]
-        memberships=db.rows('organization_members',organization_id='eq.'+template['organization_id'],user_id='eq.'+user['id'])
-        if not memberships: raise PermissionError('Organization access required.')
-        admin=memberships[0]['role'] in ('owner','admin')
+        access=organization_access(db,template['organization_id'],user['id'])
+        if not access['view']: raise PermissionError('Organization access required.')
+        admin=access['manage_templates']
         profiles=db.rows('profiles',id='eq.'+user['id']); profile=profiles[0] if profiles else {}
-        if action in ('inspect','detect','save','compile') and not admin: raise PermissionError('Only an owner or admin can configure templates.')
+        if action in ('inspect','detect','save','compile') and not admin: raise PermissionError('Template management access required.')
         fields=db.rows('template_fields',template_id='eq.'+template_id,order='page_number,y,x')
         if action in ('inspect','detect','save','compile'):
             expected=template['organization_id']+'/'+template_id+'/master.pdf'

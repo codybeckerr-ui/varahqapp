@@ -21,7 +21,7 @@
       <div class="nav"><button data-view="home" class="active">Home</button><button data-view="clients" hidden>Clients</button><button data-view="templates">Templates</button><button data-view="builder">Template Builder</button><button data-view="team">Team</button><button data-view="settings">Settings</button><button data-view="brandkit">Brand Library</button><button data-view="mylibrary">My Library</button><button data-view="downloads">Downloads</button></div>
       <div class="organization"><strong id="sidebarOrganization"></strong><small id="sidebarRole"></small><div id="workspaceSwitcher" class="workspace-switcher hidden"><label for="workspaceSelect">Switch workspace</label><select id="workspaceSelect"></select></div></div>
     </aside>
-    <main class="main"><div class="mobile-brand"><img id="mobileOrganizationLogo" class="brand-logo hidden" alt=""><div id="mobileOrganizationFallback" class="brand-fallback"></div></div><div class="top"><div><div class="eyebrow" id="organizationEyebrow"></div><h1 id="title">Dashboard</h1></div><div class="top-actions"><button id="rolePreviewToggle" class="btn outline role-preview-toggle hidden" type="button" aria-pressed="false">Preview as User</button><button id="logout" class="btn outline">Sign Out</button></div></div><div id="previewNotice" class="preview-notice hidden"><span><b>User Preview</b> — You are seeing the workspace as a regular user.</span><button id="exitUserPreview" type="button">Return to Admin View</button></div><div id="content"></div></main>
+    <main class="main"><div class="mobile-brand"><img id="mobileOrganizationLogo" class="brand-logo hidden" alt=""><div id="mobileOrganizationFallback" class="brand-fallback"></div></div><div class="top"><div><div class="eyebrow" id="organizationEyebrow"></div><h1 id="title">Dashboard</h1></div><div class="top-actions"><button id="rolePreviewToggle" class="btn outline role-preview-toggle hidden" type="button" aria-pressed="false">Preview as User</button><button id="logout" class="btn outline">Sign Out</button></div></div><div id="previewNotice" class="preview-notice hidden"><span><b>User Preview</b> — You are seeing the workspace as a regular user.</span><button id="exitUserPreview" type="button">Return to Admin View</button></div><div id="managedClientNotice" class="managed-client-notice hidden"><span><b id="managedClientName"></b> — Managed through your agency access.</span><button id="exitManagedClient" type="button">Return to Agency Dashboard</button></div><div id="content"></div></main>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -31,7 +31,7 @@
     const shell = document.getElementById('shell');
     const content = document.getElementById('content');
     const title = document.getElementById('title');
-    const state = { profile: null, memberships: [], membership: null, organization: null, templates: [], allTemplates: [], brandAssets: [], allBrandAssets: [], personalItems: [], recentGeneratedAssets: [], actualIsAdmin: false, isAdmin: false, previewAsUser: false, currentView: 'home', homeQuery: '', homeCategory: 'All', counts: { templates: 0, members: 0, assets: 0 }, organizationAssetCount: 0, userAssetCount: 0 };
+    const state = { profile: null, memberships: [], membership: null, organization: null, delegatedAccess: null, templates: [], allTemplates: [], brandAssets: [], allBrandAssets: [], personalItems: [], recentGeneratedAssets: [], actualIsAdmin: false, isAdmin: false, previewAsUser: false, currentView: 'home', homeQuery: '', homeCategory: 'All', counts: { templates: 0, members: 0, assets: 0 }, organizationAssetCount: 0, userAssetCount: 0 };
     const libraryCategoryOptions = ['General', 'Guides', 'Signage', 'Social', 'Print & Mail', 'Stationery', 'Logos', 'Icons', 'Embroidery', 'Fonts'];
 
     function escapeHtml(value) {
@@ -194,7 +194,7 @@
     function renderWorkspaceSwitcher() {
       const wrapper = document.getElementById('workspaceSwitcher');
       const select = document.getElementById('workspaceSelect');
-      wrapper.classList.toggle('hidden', state.memberships.length < 2);
+      wrapper.classList.toggle('hidden', state.memberships.length < 2 || Boolean(state.delegatedAccess));
       select.innerHTML = state.memberships.map(membership => {
         const organization = membershipOrganization(membership);
         return `<option value="${membership.organization_id}" ${membership.organization_id === state.organization?.id ? 'selected' : ''}>${escapeHtml(organization?.name || 'Organization')}</option>`;
@@ -207,6 +207,7 @@
       const organization = membershipOrganization(membership);
       if (!organization) throw new Error('Your organization could not be loaded.');
 
+      state.delegatedAccess = null;
       state.membership = membership;
       state.organization = organization;
       state.actualIsAdmin = ['owner', 'admin'].includes(membership.role);

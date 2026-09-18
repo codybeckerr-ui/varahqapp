@@ -76,7 +76,7 @@ async function saveOrganizationSettings(form) {
   message.textContent = 'Saving organization settings…';
   const values = { name: form.elements.name.value.trim(), website: form.elements.website.value.trim() || null, primary_color: form.elements.primaryColor.value.toUpperCase(), secondary_color: form.elements.secondaryColor.value.toUpperCase(), background_color: form.elements.backgroundColor.value.toUpperCase() };
   try {
-    const { data, error } = await sb.from('organizations').update(values).eq('id', state.organization.id).select('id,name,website,industry,team_size,primary_color,secondary_color,background_color').single();
+    const { data, error } = await sb.from('organizations').update(values).eq('id', state.organization.id).select('id,name,website,industry,team_size,primary_color,secondary_color,background_color,organization_type').single();
     if (error) throw error;
     state.organization = data;
     applyOrganizationTheme();

@@ -6,6 +6,14 @@ const cors = {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function bytes(encoded:string) { return Uint8Array.from(atob(encoded), c => c.charCodeAt(0)); }
 function check(result:any) { if(result.error) throw new Error(result.error.message); return result.data; }
+async function organizationAccess(db:any,organizationId:string,userId:string) {
+ const member=check(await db.from('organization_members').select('role').eq('organization_id',organizationId).eq('user_id',userId).maybeSingle());
+ if(member) return {view:true,manageTemplates:['owner','admin'].includes(member.role)};
+ const relationships=check(await db.from('organization_relationships').select('id').eq('client_organization_id',organizationId).eq('status','active')) || [];
+ if(!relationships.length) return {view:false,manageTemplates:false};
+ const grants=check(await db.from('organization_access_grants').select('can_view,can_manage_templates').eq('user_id',userId).in('relationship_id',relationships.map((relationship:any)=>relationship.id))) || [];
+ return {view:grants.some((grant:any)=>grant.can_view),manageTemplates:grants.some((grant:any)=>grant.can_view&&grant.can_manage_templates)};
+}
 Deno.serve(async req => {
  if(req.method==='OPTIONS') return new Response('ok',{headers:cors});
  try {
@@ -22,10 +30,10 @@ Deno.serve(async req => {
    if(!uuid.test(body.template_id)) throw new Error('Choose a template.');
    template=check(await db.from('templates').select('*').eq('id',body.template_id).single()); org=template.organization_id;
   }
-  const member=check(await db.from('organization_members').select('role').eq('organization_id',org).eq('user_id',user.id).maybeSingle());
-  if(!member) return Response.json({error:'Organization access required.'},{status:403,headers:cors});
-  const admin=['owner','admin'].includes(member.role);
-  if(['test','publish','unpublish','font_upload'].includes(body.action) && !admin) return Response.json({error:'Administrator access required.'},{status:403,headers:cors});
+  const access=await organizationAccess(db,org,user.id);
+  if(!access.view) return Response.json({error:'Organization access required.'},{status:403,headers:cors});
+  const admin=access.manageTemplates;
+  if(['test','publish','unpublish','font_upload'].includes(body.action) && !admin) return Response.json({error:'Template management access required.'},{status:403,headers:cors});
   const callRenderer=async(payload:any)=>{
    const result=await fetch(renderer,{method:'POST',headers:{Authorization:authorization,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(55000)});
    const text=await result.text(); let data:any;

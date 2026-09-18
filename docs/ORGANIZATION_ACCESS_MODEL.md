@@ -25,7 +25,7 @@ Platform-wide VaraHQ staff permissions must remain separate from customer organi
 - A partner user does not become a client member merely because a relationship exists.
 - Delegated access requires an active relationship, a grant for the signed-in user, and current membership in the managing partner organization.
 - Removing a grant or ending a relationship removes delegated access without moving or deleting client data.
-- Existing organization RLS continues to require direct membership until a product surface deliberately adopts a named delegated capability.
+- Client management surfaces authorize the exact named delegated capability for templates, brand files, members, and organization settings. Personal libraries remain tied to direct organization membership.
 
 ## Delegated capabilities
 
@@ -44,12 +44,12 @@ Each client-facing policy or server operation must check the exact capability it
 
 The application loads every direct organization membership and lets multi-organization users choose an active workspace. The selection is stored per user in the browser and is always checked against the memberships returned under RLS.
 
-The partner dashboard will be an additional management layer:
+The partner dashboard is an additional management layer:
 
 1. A partner user opens the partner workspace.
-2. The dashboard lists only clients for which that user has an active grant.
+2. The dashboard lists the partner's client relationships and only enables **Manage client** when the signed-in agency user has an active view grant.
 3. Opening a client establishes an explicit client context.
-4. Each action is authorized again on the server using the relevant delegated capability.
+4. Each action is authorized again through RLS and server functions using the relevant delegated capability.
 5. The UI clearly identifies both the client being managed and the partner organization providing access.
 
 ## Implementation sequence
@@ -57,7 +57,6 @@ The partner dashboard will be an additional management layer:
 1. Keep independent company signup as the default (`organization_type = 'company'`).
 2. Provision partner organizations only through trusted server-side administration.
 3. Build server-side partner onboarding that creates relationships and grants transactionally.
-4. Add a partner dashboard and client switcher backed by scoped queries.
-5. Extend RLS and Edge Functions one capability at a time, with tenant-isolation tests for direct members, granted partner users, ungranted partner users, paused relationships, and unrelated users.
+4. Continue refining the partner dashboard and client workspace backed by scoped queries.
+5. Maintain tenant-isolation tests for direct members, granted partner users, ungranted partner users, paused relationships, and unrelated users as each client workflow expands.
 6. Add billing, reporting, white-label settings, and storage aggregation after the access model is proven.
-

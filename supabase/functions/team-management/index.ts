@@ -14,6 +14,18 @@ function fail(message: string, status = 400) {
   return Response.json({ error: message }, { status, headers: { ...cors, 'Cache-Control': 'no-store' } });
 }
 
+async function canManageMembers(db: any, organizationId: string, userId: string) {
+  const { data: membership, error: membershipError } = await db.from('organization_members').select('role').eq('organization_id', organizationId).eq('user_id', userId).maybeSingle();
+  if (membershipError) throw membershipError;
+  if (membership && ['owner', 'admin'].includes(membership.role)) return true;
+  const { data: relationships, error: relationshipError } = await db.from('organization_relationships').select('id').eq('client_organization_id', organizationId).eq('status', 'active');
+  if (relationshipError) throw relationshipError;
+  if (!relationships?.length) return false;
+  const { data: grants, error: grantError } = await db.from('organization_access_grants').select('relationship_id').eq('user_id', userId).eq('can_view', true).eq('can_manage_members', true).in('relationship_id', relationships.map((relationship) => relationship.id));
+  if (grantError) throw grantError;
+  return Boolean(grants?.length);
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (request.method !== 'POST') return fail('Method not allowed.', 405);
@@ -26,9 +38,7 @@ Deno.serve(async (request) => {
     if (raw.length > 20_000) return fail('The request is too large.');
     const body = JSON.parse(raw);
     if (!uuid.test(body.organization_id || '')) return fail('Choose an organization.');
-    const { data: caller, error: callerError } = await db.from('organization_members').select('role').eq('organization_id', body.organization_id).eq('user_id', user.id).maybeSingle();
-    if (callerError) throw callerError;
-    if (!caller || !['owner', 'admin'].includes(caller.role)) return fail('Administrator access required.', 403);
+    if (!await canManageMembers(db, body.organization_id, user.id)) return fail('Team management access required.', 403);
 
     if (body.action === 'invite') {
       const email = String(body.email || '').trim().toLowerCase();

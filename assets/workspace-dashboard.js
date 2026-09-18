@@ -33,13 +33,19 @@ async function loadAgencyData() {
   const { data, error } = await sb.from('organization_relationships').select('id,status,created_at,client_organization_id,organizations!organization_relationships_client_organization_id_fkey(id,name,slug,website,industry,team_size,primary_color,secondary_color,background_color)').eq('managing_organization_id', state.organization.id).order('created_at', {ascending:false});
   agencyWorkspace.loading = false;
   if (error) throw error;
-  agencyWorkspace.clients = data || [];
+  const relationships = data || [];
+  if (!relationships.length) { agencyWorkspace.clients = []; return; }
+  const { data: grants, error: grantError } = await sb.from('organization_access_grants').select('relationship_id,can_view,can_manage_templates,can_manage_brand,can_manage_members,can_manage_settings,can_review_approvals').eq('user_id', state.userId).in('relationship_id', relationships.map(relationship => relationship.id));
+  if (grantError) throw grantError;
+  const grantsByRelationship = new Map((grants || []).map(grant => [grant.relationship_id, grant]));
+  agencyWorkspace.clients = relationships.map(relationship => ({...relationship, access:grantsByRelationship.get(relationship.id) || null}));
 }
 
 function agencyClientRow(relationship) {
   const client = agencyClientOrganization(relationship);
   const initial = (client?.name || 'C').trim().slice(0,1).toUpperCase();
-  return `<article class="agency-client-card"><span class="client-mark">${html(initial)}</span><div><strong>${html(client?.name || 'Client organization')}</strong><small>${html(client?.industry || 'Industry not set')}${client?.website?` · ${html(client.website)}`:''}</small></div><span class="status-dot ${relationship.status === 'active' ? '' : 'paused'}">${html(relationship.status)}</span><button class="btn outline" type="button" data-client-details="${relationship.id}">View client</button></article>`;
+  const available = relationship.status === 'active' && relationship.access?.can_view;
+  return `<article class="agency-client-card"><span class="client-mark">${html(initial)}</span><div><strong>${html(client?.name || 'Client organization')}</strong><small>${html(client?.industry || 'Industry not set')}${client?.website?` · ${html(client.website)}`:''}</small></div><span class="status-dot ${relationship.status === 'active' ? '' : 'paused'}">${html(relationship.status)}</span><button class="btn outline" type="button" data-client-details="${relationship.id}" ${available?'':'disabled'}>${available?'Manage client':'Access not assigned'}</button></article>`;
 }
 
 function agencyDashboardView() {
@@ -59,6 +65,79 @@ function clientsView() {
   return `<section class="client-page-header"><div><div class="eyebrow">PARTNER MANAGEMENT</div><h2>Clients</h2><p class="muted">Organizations managed by ${html(state.organization.name)}.</p></div><button class="btn" type="button" data-open-add-client>+ Add Client</button></section>${agencyWorkspace.loading?'<div class="card"><p>Loading clients…</p></div>':agencyWorkspace.clients.length?`<div class="agency-client-list">${agencyWorkspace.clients.map(agencyClientRow).join('')}</div>`:`<div class="agency-empty"><h3>No clients yet</h3><p class="muted">Add the first independent organization your agency will manage in VaraHQ.</p><button class="btn" type="button" data-open-add-client>Add Your First Client</button></div>`}`;
 }
 
+function managedClientDashboard() {
+  const access = state.delegatedAccess?.grant || {};
+  const tools = [
+    access.can_manage_templates ? `<button class="quick-action primary" onclick="show('templates')"><span>Manage Templates</span><span>→</span></button>` : '',
+    access.can_manage_brand ? `<button class="quick-action" onclick="show('brandkit')"><span>Manage Brand Library</span><span>→</span></button>` : '',
+    access.can_manage_members ? `<button class="quick-action" onclick="show('team')"><span>Manage Client Team</span><span>→</span></button>` : '',
+    access.can_manage_settings ? `<button class="quick-action" onclick="show('settings')"><span>Client Settings</span><span>→</span></button>` : ''
+  ].join('');
+  const templates = state.allTemplates.slice(0, 3);
+  return `<section class="dashboard-heading"><div><div class="agency-badge">MANAGED CLIENT</div><h2>${html(state.organization.name)}</h2><p class="muted">Manage this client’s templates, brand assets, team, and workspace settings from one place.</p></div><button class="btn outline" type="button" data-return-to-agency>← Agency Dashboard</button></section>
+    <section class="dashboard-metrics"><article class="dashboard-metric"><span class="dashboard-metric-icon">T</span><div><strong>${state.allTemplates.length}</strong><span>Total templates</span></div></article><article class="dashboard-metric"><span class="dashboard-metric-icon">B</span><div><strong>${state.allBrandAssets.length}</strong><span>Brand files</span></div></article><article class="dashboard-metric"><span class="dashboard-metric-icon">U</span><div><strong>${state.counts.members}</strong><span>Client team members</span></div></article><article class="dashboard-metric"><span class="dashboard-metric-icon">D</span><div><strong>${state.organizationAssetCount}</strong><span>Generated files</span></div></article></section>
+    <section class="organization-dashboard-grid"><div><article class="dashboard-panel"><div class="dashboard-panel-heading"><h3>Client templates</h3>${access.can_manage_templates?'<button type="button" onclick="show(\'templates\')">Manage all →</button>':''}</div>${templates.length?`<div class="popular-template-grid">${templates.map(template=>`<article class="popular-template"><div class="popular-template-art"><strong>${html(template.name)}</strong></div><div class="popular-template-body"><strong>${html(template.name)}</strong><small>${html(template.library_category || 'General')} · ${html(template.status)}</small><button class="btn" type="button" data-open-template="${template.id}">Configure</button></div></article>`).join('')}</div>`:`<div class="agency-empty"><h3>No client templates yet</h3><p class="muted">Upload the client’s first approved master PDF and configure its controlled fields.</p>${access.can_manage_templates?'<button class="btn" onclick="show(\'templates\')">Add a Template</button>':''}</div>`}</article></div><aside class="dashboard-panel"><div class="dashboard-panel-heading"><h3>Client management</h3></div><div class="quick-actions">${tools}</div></aside></section>`;
+}
+
+views.clienthome = managedClientDashboard;
+
+async function activateManagedClient(relationship) {
+  const client = agencyClientOrganization(relationship);
+  if (!client || relationship.status !== 'active' || !relationship.access?.can_view) throw new Error('Client access is not assigned to your agency account.');
+  const partnerOrganizationId = state.organization.id;
+  state.delegatedAccess = { partnerOrganizationId, relationshipId:relationship.id, grant:relationship.access };
+  state.organization = client;
+  state.actualIsAdmin = true;
+  state.previewAsUser = false;
+  state.isAdmin = true;
+  state.currentView = 'clienthome';
+  state.homeQuery = '';
+  state.homeCategory = 'All';
+  state.templates = [];
+  state.allTemplates = [];
+  state.brandAssets = [];
+  state.allBrandAssets = [];
+  state.personalItems = [];
+  state.recentGeneratedAssets = [];
+  library.categoryFilter = 'All';
+  library.generatedAssets = [];
+  organizationAdmin.members = [];
+  workflow.template = null;
+  workflow.fields = [];
+  const organizationId = client.id;
+  const [membersResult, assetsResult, userAssetsResult, recentAssetsResult] = await Promise.all([
+    sb.from('organization_members').select('*', {count:'exact',head:true}).eq('organization_id', organizationId),
+    sb.from('generated_assets').select('*', {count:'exact',head:true}).eq('organization_id', organizationId),
+    sb.from('generated_assets').select('*', {count:'exact',head:true}).eq('organization_id', organizationId).eq('user_id', state.userId),
+    sb.from('generated_assets').select('id,output_format,created_at,user_id,templates(name)').eq('organization_id', organizationId).order('created_at', {ascending:false}).limit(5)
+  ]);
+  const error = membersResult.error || assetsResult.error || userAssetsResult.error || recentAssetsResult.error;
+  if (error) throw error;
+  state.organizationAssetCount = assetsResult.count || 0;
+  state.userAssetCount = userAssetsResult.count || 0;
+  state.recentGeneratedAssets = recentAssetsResult.data || [];
+  state.counts = {templates:0,members:membersResult.count || 0,assets:state.organizationAssetCount};
+  await Promise.all([loadTemplates(), loadLibraryState()]);
+  applyOrganizationTheme();
+  document.getElementById('sidebarOrganization').textContent = client.name;
+  document.getElementById('organizationLogoFallback').textContent = client.name;
+  document.getElementById('mobileOrganizationFallback').textContent = client.name;
+  document.getElementById('organizationEyebrow').textContent = client.name.toUpperCase();
+  document.getElementById('managedClientName').textContent = client.name;
+  applyRoleView();
+  renderWorkspaceSwitcher();
+  show('clienthome');
+}
+
+async function returnToAgencyWorkspace() {
+  const partnerOrganizationId = state.delegatedAccess?.partnerOrganizationId;
+  if (!partnerOrganizationId) return;
+  document.getElementById('managedClientNotice').classList.add('hidden');
+  content.innerHTML = '<div class="card"><p class="muted">Returning to your agency dashboard…</p></div>';
+  await activateOrganization(partnerOrganizationId);
+  show('clients');
+}
+
 views.clients = clientsView;
 adminDashboardView = function() {
   return state.organization?.organization_type === 'partner' ? agencyDashboardView() : organizationAdminDashboard();
@@ -67,8 +146,30 @@ adminDashboardView = function() {
 const dashboardApplyRoleView = applyRoleView;
 applyRoleView = function() {
   dashboardApplyRoleView();
-  const partnerAdmin = state.organization?.organization_type === 'partner' && state.isAdmin;
+  const delegated = state.delegatedAccess;
   const nav = Object.fromEntries([...document.querySelectorAll('.nav button')].map(button => [button.dataset.view, button]));
+  if (delegated) {
+    const access = delegated.grant;
+    nav.clients.hidden = true;
+    nav.home.textContent = 'Client Overview';
+    nav.templates.hidden = !access.can_manage_templates;
+    nav.builder.hidden = !access.can_manage_templates;
+    nav.team.hidden = !access.can_manage_members;
+    nav.settings.hidden = !access.can_manage_settings;
+    nav.brandkit.hidden = !access.can_manage_brand;
+    nav.mylibrary.hidden = true;
+    nav.downloads.hidden = false;
+    nav.team.textContent = 'Client Team';
+    nav.settings.textContent = 'Client Settings';
+    document.querySelector('.side').classList.remove('agency-side');
+    document.getElementById('sidebarRole').textContent = 'Managed Client';
+    document.getElementById('rolePreviewToggle').classList.add('hidden');
+    document.getElementById('previewNotice').classList.add('hidden');
+    document.getElementById('managedClientNotice').classList.remove('hidden');
+    return;
+  }
+  const partnerAdmin = state.organization?.organization_type === 'partner' && state.isAdmin;
+  document.getElementById('managedClientNotice').classList.add('hidden');
   nav.clients.hidden = !partnerAdmin;
   nav.home.textContent = partnerAdmin ? 'Agency Dashboard' : 'Dashboard';
   nav.team.textContent = partnerAdmin ? 'Agency Team' : 'Team';
@@ -81,6 +182,16 @@ applyRoleView = function() {
 
 const dashboardShow = show;
 show = function(view) {
+  if (state.delegatedAccess) {
+    const access = state.delegatedAccess.grant;
+    const allowed = {clienthome:true,home:true,templates:access.can_manage_templates,builder:access.can_manage_templates,brandkit:access.can_manage_brand,team:access.can_manage_members,settings:access.can_manage_settings,downloads:true};
+    if (!allowed[view]) view = 'clienthome';
+    if (view === 'home') view = 'clienthome';
+    dashboardShow(view);
+    title.textContent = {clienthome:'Client Overview',templates:'Client Templates',builder:'Template Builder',brandkit:'Client Brand Library',team:'Client Team',settings:'Client Settings',downloads:'Client Files'}[view] || 'Client Overview';
+    document.querySelectorAll('.nav button').forEach(button => button.classList.toggle('active', button.dataset.view === (view === 'clienthome' ? 'home' : view)));
+    return;
+  }
   const partnerAdmin = state.organization?.organization_type === 'partner' && state.isAdmin;
   if (view === 'clients' && !partnerAdmin) view = 'home';
   dashboardShow(view);
@@ -111,16 +222,27 @@ async function createAgencyClient(form) {
   } finally { agencyWorkspace.busy = false; }
 }
 
-content.addEventListener('click', event => {
+content.addEventListener('click', async event => {
   if (event.target.closest('[data-open-add-client]')) { agencyWorkspace.showCreateClient = true; show('clients'); return; }
   if (event.target.closest('[data-cancel-add-client]')) { agencyWorkspace.showCreateClient = false; show('clients'); return; }
+  if (event.target.closest('[data-return-to-agency]')) { await returnToAgencyWorkspace(); return; }
   const details = event.target.closest('[data-client-details]');
   if (details) {
     const relationship = agencyWorkspace.clients.find(item => item.id === details.dataset.clientDetails);
-    const client = relationship && agencyClientOrganization(relationship);
-    if (client) content.innerHTML = `<div class="client-page-header"><div><div class="eyebrow">CLIENT WORKSPACE</div><h2>${html(client.name)}</h2><p class="muted">${html(client.industry || 'Industry not set')} · ${html(relationship.status)}</p></div><button class="btn outline" type="button" onclick="show('clients')">Back to Clients</button></div><div class="dashboard-metrics"><article class="dashboard-metric"><span class="dashboard-metric-icon">C</span><div><strong>${html(client.name.slice(0,1).toUpperCase())}</strong><span>Independent organization</span></div></article><article class="dashboard-metric"><span class="dashboard-metric-icon">A</span><div><strong>${relationship.status === 'active' ? 'Active' : 'Paused'}</strong><span>Agency relationship</span></div></article></div><div class="dashboard-panel" style="margin-top:16px"><h3>Client access is ready</h3><p class="muted">The organization exists and your agency grant is active. Template, brand, member, and settings tools will be connected to this client context as those delegated workflows are enabled.</p></div>`;
+    if (!relationship) return;
+    content.innerHTML = '<div class="card"><p class="muted">Opening the client workspace…</p></div>';
+    try { await activateManagedClient(relationship); }
+    catch (error) {
+      const message = error.message || 'The client workspace could not be opened.';
+      await returnToAgencyWorkspace().catch(() => {});
+      content.insertAdjacentHTML('afterbegin', `<div class="notice error">${html(message)}</div>`);
+    }
   }
 });
+
+document.getElementById('exitManagedClient').addEventListener('click', () => returnToAgencyWorkspace().catch(error => {
+  content.innerHTML = `<div class="card"><p class="error">${html(error.message || 'The agency dashboard could not be opened.')}</p></div>`;
+}));
 
 content.addEventListener('submit', event => {
   if (event.target.id !== 'agencyClientForm') return;

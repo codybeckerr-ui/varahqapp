@@ -6,6 +6,7 @@ function personalItem(type, id) {
 }
 
 function libraryToggleButton(type, id) {
+  if (state.delegatedAccess) return '';
   const saved = Boolean(personalItem(type, id));
   return `<button type="button" class="btn outline save-button ${saved?'saved':''}" data-library-type="${type}" data-library-id="${id}" aria-pressed="${saved}">${saved?'★ Saved':'☆ Save'}</button>`;
 }
@@ -13,7 +14,7 @@ function libraryToggleButton(type, id) {
 async function loadLibraryState() {
   const [assetsResult, personalResult] = await Promise.all([
     sb.from('brand_assets').select('id,organization_id,name,description,category,library_category,file_path,original_filename,mime_type,size_bytes,approved,is_primary_logo,created_at').eq('organization_id', state.organization.id).order('created_at', {ascending:false}),
-    sb.from('personal_library_items').select('id,brand_asset_id,template_id,generated_asset_id,created_at').eq('organization_id', state.organization.id).eq('user_id', state.userId).order('created_at', {ascending:false})
+    state.delegatedAccess ? Promise.resolve({data:[],error:null}) : sb.from('personal_library_items').select('id,brand_asset_id,template_id,generated_asset_id,created_at').eq('organization_id', state.organization.id).eq('user_id', state.userId).order('created_at', {ascending:false})
   ]);
   if (assetsResult.error || personalResult.error) throw assetsResult.error || personalResult.error;
   state.allBrandAssets = assetsResult.data || [];
