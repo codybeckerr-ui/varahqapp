@@ -23,6 +23,8 @@ Platform-wide VaraHQ staff permissions must remain separate from customer organi
 
 - Templates, brand files, generated assets, members, settings, and billing belong to the client organization identified by their `organization_id`.
 - A partner user does not become a client member merely because a relationship exists.
+- Client employees added by an agency become direct members of the client organization as `admin` or `member`; they do not become members of the agency.
+- Templates created in a client context are owned by that client organization. Templates created in the partner workspace are owned by the partner organization and can be used for the agency's own internal work.
 - Delegated access requires an active relationship, a grant for the signed-in user, and current membership in the managing partner organization.
 - Removing a grant or ending a relationship removes delegated access without moving or deleting client data.
 - Client management surfaces authorize the exact named delegated capability for templates, brand files, members, and organization settings. Personal libraries remain tied to direct organization membership.
