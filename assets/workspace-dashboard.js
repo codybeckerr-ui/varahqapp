@@ -75,19 +75,8 @@ function agencyClientStats(relationship) {
   return { users:agencyWorkspace.members.filter(item => item.organization_id === id).length, templates:templates.length, pending:templates.filter(item => item.status === 'testing').length, generated:generated.length, storage:brand.reduce((sum,item)=>sum + Number(item.size_bytes || 0),0) };
 }
 
-function agencyIcon(name) {
-  const paths = {
-    clients:'<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 4v16M12 8h5M12 12h5M12 16h3"/>',
-    users:'<circle cx="9" cy="8" r="3"/><path d="M3.5 20c.5-4 2.4-6 5.5-6s5 2 5.5 6M16 7.5a2.5 2.5 0 1 1 0 5M16.5 15c2.4.4 3.7 2 4 5"/>',
-    approvals:'<circle cx="12" cy="12" r="9"/><path d="m8 12 2.7 2.7L16.5 9"/>',
-    assets:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m5.5 18 4.2-4.4 3 2.8 2.8-3.1 3 4.7"/>',
-    storage:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>'
-  };
-  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name] || paths.assets}</svg>`;
-}
-
-function agencyMetric(icon, value, label, note = '') {
-  return `<article class="agency-kpi"><span class="agency-kpi-icon">${agencyIcon(icon)}</span><div><strong>${html(value)}</strong><span>${html(label)}</span>${note?`<small>${html(note)}</small>`:''}</div></article>`;
+function agencyMetric(value, label, note = '') {
+  return `<article class="agency-kpi"><div><strong>${html(value)}</strong><span>${html(label)}</span>${note?`<small>${html(note)}</small>`:''}</div></article>`;
 }
 
 function agencyMonthlyChart() {
@@ -100,7 +89,7 @@ function agencyMonthlyChart() {
   const byKey = new Map(months.map(month => [month.key, month]));
   agencyWorkspace.generatedAssets.forEach(asset => { const date = new Date(asset.created_at); const month = byKey.get(`${date.getFullYear()}-${date.getMonth()}`); if (month) month.count += 1; });
   const total = months.reduce((sum, month) => sum + month.count, 0);
-  if (!total) return `<div class="agency-chart-empty">${agencyIcon('assets')}<strong>No generated assets yet</strong><span>Monthly activity will appear after a client creates its first file.</span></div>`;
+  if (!total) return '<div class="agency-chart-empty"><strong>No generated assets yet</strong><span>Monthly activity will appear after a client creates its first file.</span></div>';
   const max = Math.max(1, ...months.map(month => month.count));
   return `<div class="agency-bars">${months.map(month=>`<div class="agency-bar-column"><div class="agency-bar-value">${month.count || ''}</div><div class="agency-bar-track"><i style="height:${month.count ? Math.max(8, month.count / max * 100) : 0}%"></i></div><span>${month.label}</span></div>`).join('')}</div>`;
 }
@@ -109,7 +98,7 @@ function agencyAssetTypes() {
   const counts = {pdf:0,png:0,jpg:0};
   agencyWorkspace.generatedAssets.forEach(asset => { if (counts[asset.output_format] !== undefined) counts[asset.output_format] += 1; });
   const total = counts.pdf + counts.png + counts.jpg;
-  if (!total) return `<div class="agency-chart-empty agency-chart-empty-compact">${agencyIcon('approvals')}<strong>No file types to report</strong><span>PDF, PNG, and JPG totals will appear after files are generated.</span></div>`;
+  if (!total) return '<div class="agency-chart-empty agency-chart-empty-compact"><strong>No file types to report</strong><span>PDF, PNG, and JPG totals will appear after files are generated.</span></div>';
   const pdf = total ? counts.pdf / total * 100 : 0;
   const png = total ? counts.png / total * 100 : 0;
   const background = total ? `conic-gradient(#0f4a38 0 ${pdf}%,#3f8f6e ${pdf}% ${pdf+png}%,#8bc3a7 ${pdf+png}% 100%)` : 'conic-gradient(#e5ebe8 0 100%)';
@@ -143,7 +132,7 @@ function agencyDashboardView() {
   const clientPerformance = activeClients.map(relationship => ({relationship,count:agencyClientStats(relationship).generated})).sort((a,b)=>b.count-a.count).slice(0,5);
   const maxClientAssets = Math.max(1,...clientPerformance.map(item=>item.count));
   return `<section class="agency-page-heading"><div><h2>Agency Dashboard</h2><p>Manage all your clients, assets, templates and approvals in one place.</p></div><button class="btn agency-add-client" type="button" data-open-add-client>＋ Add Client</button></section>
-    <section class="agency-kpi-grid">${agencyMetric('clients',agencyWorkspace.clients.length,'Total Clients',activeClients.length ? `${activeClients.length} active` : 'Add your first client')}${agencyMetric('users',totalUsers,'Total Client Users',totalUsers ? 'Across managed accounts' : 'No client users yet')}${agencyMetric('approvals',pending,'Pending Approvals',pending ? 'Templates awaiting review' : 'Nothing waiting')}${agencyMetric('assets',agencyWorkspace.generatedAssets.length,'Assets Generated','Across client accounts')}${agencyMetric('storage',agencyFormatBytes(storage),'Storage Used',`${agencyWorkspace.brandAssets.length} tracked files`)}</section>
+    <section class="agency-kpi-grid">${agencyMetric(agencyWorkspace.clients.length,'Total Clients',activeClients.length ? `${activeClients.length} active` : 'Add your first client')}${agencyMetric(totalUsers,'Total Client Users',totalUsers ? 'Across managed accounts' : 'No client users yet')}${agencyMetric(pending,'Pending Approvals',pending ? 'Templates awaiting review' : 'Nothing waiting')}${agencyMetric(agencyWorkspace.generatedAssets.length,'Assets Generated','Across client accounts')}${agencyMetric(agencyFormatBytes(storage),'Storage Used',`${agencyWorkspace.brandAssets.length} tracked files`)}</section>
     <section class="agency-analytics-grid"><article class="agency-card agency-chart-card"><div class="agency-card-heading"><h3>Client Overview</h3><span>Assets Generated</span></div>${agencyMonthlyChart()}</article><article class="agency-card"><div class="agency-card-heading"><h3>Asset Types</h3><span>This month</span></div>${agencyAssetTypes()}</article></section>
     <section class="agency-work-grid"><article class="agency-card agency-clients-card"><div class="agency-card-heading agency-table-heading"><h3>Clients</h3><label><span>⌕</span><input type="search" data-agency-client-search value="${html(agencyWorkspace.query)}" placeholder="Search clients…"></label></div><div class="agency-table-wrap"><table class="agency-client-table"><thead><tr><th>Client</th><th>Industry</th><th>Users</th><th>Templates</th><th>Pending</th><th>Storage</th><th>Status</th><th>Actions</th></tr></thead><tbody>${filteredClients.length?filteredClients.map(agencyClientTableRow).join(''):`<tr><td colspan="8"><div class="agency-table-empty"><strong>No clients yet</strong><span>Add your first client to begin managing their team, templates, and brand.</span><button class="btn" type="button" data-open-add-client>Add Client</button></div></td></tr>`}</tbody></table></div><div class="agency-table-footer"><span>Showing ${filteredClients.length} of ${agencyWorkspace.clients.length} clients</span></div></article><aside class="agency-card agency-activity-card"><div class="agency-card-heading"><h3>Recent Activity</h3><span>Latest</span></div>${agencyRecentActivity()}</aside></section>
     <section class="agency-bottom-grid"><article class="agency-card"><h3>Storage Usage</h3><strong class="agency-storage-total">${agencyFormatBytes(storage)}</strong><span class="muted"> across client brand libraries</span><div class="agency-storage-line"><i style="width:${storage?100:0}%"></i></div><div class="agency-storage-key"><span>Brand files tracked</span><strong>${agencyWorkspace.brandAssets.length}</strong></div></article><article class="agency-card"><h3>Top Clients by Asset Generation</h3>${clientPerformance.length?`<div class="agency-performance">${clientPerformance.map(item=>`<div><span>${html(agencyClientOrganization(item.relationship)?.name || 'Client')}</span><i><b style="width:${item.count/maxClientAssets*100}%"></b></i><strong>${item.count}</strong></div>`).join('')}</div>`:'<p class="muted">Client generation totals will appear here.</p>'}</article><article class="agency-growth-card"><small>PARTNER PROGRAM</small><h3>Help Your Clients<br>Grow Their Brands</h3><p>Deliver professional brand portals while keeping every client workspace separate and secure.</p><button class="btn" type="button" data-open-add-client>Add a New Client →</button></article></section>`;
@@ -163,7 +152,7 @@ function agencyStorageView() {
   const storage = agencyWorkspace.brandAssets.reduce((sum,asset)=>sum + Number(asset.size_bytes || 0),0);
   const byType = new Map();
   agencyWorkspace.brandAssets.forEach(asset => byType.set(asset.category, (byType.get(asset.category) || 0) + Number(asset.size_bytes || 0)));
-  return `<section class="agency-page-heading"><div><h2>Storage</h2><p>Storage currently tracked across accessible client brand libraries.</p></div></section><section class="agency-kpi-grid storage-kpis">${agencyMetric('storage',agencyFormatBytes(storage),'Tracked Storage')}${agencyMetric('assets',agencyWorkspace.brandAssets.length,'Brand Files')}${agencyMetric('clients',agencyWorkspace.clients.filter(client=>client.access?.can_view).length,'Accessible Clients')}</section><article class="agency-card"><div class="agency-card-heading"><h3>Storage by File Type</h3><span>Brand Library</span></div>${byType.size?`<div class="agency-storage-breakdown">${[...byType.entries()].sort((a,b)=>b[1]-a[1]).map(([type,size])=>`<div><span>${html(type)}</span><strong>${agencyFormatBytes(size)}</strong></div>`).join('')}</div>`:'<div class="agency-table-empty"><strong>No client files yet</strong><span>Uploaded brand files will be included here.</span></div>'}</article>`;
+  return `<section class="agency-page-heading"><div><h2>Storage</h2><p>Storage currently tracked across accessible client brand libraries.</p></div></section><section class="agency-kpi-grid storage-kpis">${agencyMetric(agencyFormatBytes(storage),'Tracked Storage')}${agencyMetric(agencyWorkspace.brandAssets.length,'Brand Files')}${agencyMetric(agencyWorkspace.clients.filter(client=>client.access?.can_view).length,'Accessible Clients')}</section><article class="agency-card"><div class="agency-card-heading"><h3>Storage by File Type</h3><span>Brand Library</span></div>${byType.size?`<div class="agency-storage-breakdown">${[...byType.entries()].sort((a,b)=>b[1]-a[1]).map(([type,size])=>`<div><span>${html(type)}</span><strong>${agencyFormatBytes(size)}</strong></div>`).join('')}</div>`:'<div class="agency-table-empty"><strong>No client files yet</strong><span>Uploaded brand files will be included here.</span></div>'}</article>`;
 }
 
 views.approvals = agencyApprovalsView;
