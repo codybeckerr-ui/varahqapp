@@ -45,7 +45,6 @@ Deno.serve(async (request) => {
         const { data: memberships, error: membershipError } = await db.from('organization_members').select('organization_id').eq('user_id', invitedUserId);
         if (membershipError) throw membershipError;
         if (memberships?.some((membership) => membership.organization_id === body.organization_id)) return fail('That person is already on this team.');
-        if (memberships?.length) return fail('That account already belongs to another organization.');
       } else {
         const { data: invitation, error: invitationError } = await db.auth.admin.inviteUserByEmail(email, {
           data: { full_name: fullName },
